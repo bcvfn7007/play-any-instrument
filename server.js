@@ -19,9 +19,15 @@ const TYPES = {
 
 http
   .createServer((req, res) => {
-    const url = decodeURIComponent(req.url.split('?')[0]);
+    let url;
+    try {
+      url = decodeURIComponent(req.url.split('?')[0]);
+    } catch {
+      res.writeHead(400).end();
+      return;
+    }
     const file = path.normalize(path.join(ROOT, url === '/' ? 'index.html' : url));
-    if (!file.startsWith(ROOT)) {
+    if (!file.startsWith(ROOT + path.sep)) {
       res.writeHead(403).end();
       return;
     }
