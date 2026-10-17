@@ -1,0 +1,9 @@
+node_modules/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Картинки и тексты для соцсетей — на сайт не выкладываются
+реклама/

@@ -1,0 +1,17 @@
+# Настройки выкладки на Render (render.com) как статического сайта.
+# Сборки нет: публикуется сама папка с index.html, css/ и js/.
+services:
+  - type: web
+    name: play-any-instrument
+    runtime: static
+    buildCommand: echo "Сборка не нужна"
+    staticPublishPath: .
+    headers:
+      # Файлы называются одинаково из версии в версию, поэтому просим
+      # браузер сверяться с сервером — после обновления сайт сразу свежий.
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

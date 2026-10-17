@@ -1,0 +1,9 @@
+{
+  "name": "zvukoryad",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Звукоряд — сайт, где можно играть на любом музыкальном инструменте прямо в браузере",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
