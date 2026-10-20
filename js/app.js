@@ -18,6 +18,7 @@
     recent: [],
     state: {},
     layoutPick: {},
+    drumKit: {},
     synth: { wave: 'sawtooth', cutoff: 2600, q: 5, attack: 0.008, release: 0.22, detune: 12 },
     bpm: 100,
     beats: 4,
@@ -171,7 +172,7 @@
       results,
       sections,
       h('footer.site-foot', null,
-        h('p', null, 'Записи живых инструментов — библиотека FluidR3 GM. Без интернета инструменты звучат через встроенный синтезатор.'))));
+        h('p', null, 'Записи живых инструментов — библиотека FluidR3 GM, барабанов — MusyngKite и коллекция драм-машин smpldsnds. Без интернета всё звучит через встроенный синтезатор.'))));
 
     renderSections(sections);
     search.addEventListener('input', () => filter(search.value, results, sections));
@@ -390,9 +391,32 @@
     if (v) v.kill(App.audio.ctx.currentTime + (delay || 0));
   }
 
+  /** Какой набор записей звучит у барабанов: выбранный человеком или заданный инструментом. */
+  function currentKit() {
+    const inst = current.inst;
+    const pick = settings.drumKit[inst.id];
+    return inst.kits && inst.kits.includes(pick) ? pick : inst.kit || null;
+  }
+
   function drum(sound, vel, when) {
     const ac = App.audio.ensure();
-    return App.audio.track(App.synth.drum(sound, vel, buses().synth.input, when || ac.currentTime));
+    const t = when || ac.currentTime;
+    const kit = currentKit();
+    let v = null;
+    if (kit && settings.source === 'samples') v = App.drumkit.play(kit, sound, vel, buses().sample.input, t);
+    if (!v) v = App.synth.drum(App.drumkit.fallback(sound), vel, buses().synth.input, t);
+    return App.audio.track(v);
+  }
+
+  function kitSwitch(inst) {
+    return h('div.deck-group', null,
+      h('span.deck-label', null, 'Звук'),
+      App.ui.segmented(inst.kits.map((k) => [k, App.drumkit.kits[k].name]), currentKit(), (v) => {
+        settings.drumKit[inst.id] = v;
+        save();
+        if (settings.source === 'samples') App.drumkit.preload(v, current.drumList);
+        updateSource();
+      }, 'Набор звуков').el);
   }
 
   function continuous(f) {
@@ -427,7 +451,7 @@
     const hints = h('footer.hints', { 'aria-label': 'Подсказки' });
     const page = h('div.play', { style: { '--fam': hueOf(inst) } }, bar.el, deck, learnBar, stage, hints);
     app.append(page);
-    current = { inst, layoutName, page, bar, deck, stage, hints, layout: null, preloadList: [], buses: null, learnUi: buildLearnBar(learnBar) };
+    current = { inst, layoutName, page, bar, deck, stage, hints, layout: null, preloadList: [], drumList: [], buses: null, learnUi: buildLearnBar(learnBar) };
     mountLayout();
     window.scrollTo(0, 0);
   }
@@ -456,6 +480,7 @@
     c.page.dataset.layout = c.layoutName;
     c.stage.className = 'stage layout-' + c.layoutName + (c.inst.style ? ' style-' + c.inst.style : '');
     if (c.inst.alt) c.deck.append(layoutSwitch(c.inst));
+    if (c.inst.kits) c.deck.append(kitSwitch(c.inst));
     const factory = App.layouts[c.layoutName];
     c.layout = factory(c.stage, makeCtx(c));
     if (c.inst.editable) c.deck.append(synthEditor());
@@ -464,7 +489,7 @@
       c.deck.append(h('button.btn.learn-btn', { type: 'button', title: 'Выбрать песню и сыграть её по подсказкам', onClick: openSongs },
         App.icon('note'), 'Разучить мелодию'));
     }
-    if (['keys', 'strings', 'bars', 'beat', 'harp'].includes(c.layoutName)) {
+    if (['keys', 'strings', 'bars', 'beat', 'harp', 'kit'].includes(c.layoutName)) {
       c.deck.append(h('span.rotate-tip', null, 'Поверните телефон боком'));
     }
     c.deck.hidden = !c.deck.children.length;
@@ -500,6 +525,13 @@
       preload(midis) {
         c.preloadList = midis;
         if (useSamples(inst)) App.sampler.preload(inst.gm, midis);
+        updateSource();
+      },
+      /** Какие удары понадобятся — чтобы записи барабанов загрузились заранее. */
+      preloadDrums(sounds) {
+        c.drumList = sounds;
+        const kit = currentKit();
+        if (kit && settings.source === 'samples') App.drumkit.preload(kit, sounds);
         updateSource();
       },
     };
@@ -962,10 +994,11 @@
   App.sampler.onChange(() => {
     if (sourceQueued) return;
     sourceQueued = true;
-    requestAnimationFrame(() => {
+    // Таймер, а не кадр анимации: в фоновой вкладке кадры не идут, и надпись застревала.
+    setTimeout(() => {
       sourceQueued = false;
       updateSource();
-    });
+    }, 60);
   });
 
   function updateSource() {
@@ -973,6 +1006,8 @@
     const chip = current.bar.source;
     const inst = current.inst;
     const text = chip.querySelector('.source-text');
+    const kit = currentKit();
+    if (!inst.gm && kit) return updateDrumSource(chip, text, kit);
     if (!inst.gm) {
       chip.dataset.state = 'synth';
       text.textContent = 'Синтез';
@@ -1003,9 +1038,34 @@
     }
   }
 
+  function updateDrumSource(chip, text, kit) {
+    chip.disabled = false;
+    const p = App.drumkit.progress(kit, current.drumList);
+    let state = 'live';
+    let label = 'Живой звук';
+    let title = 'Играют записи настоящих барабанов. Нажмите, чтобы переключиться на синтезатор';
+    if (settings.source !== 'samples') {
+      state = 'synth';
+      label = 'Синтез';
+      title = 'Сейчас барабаны синтезируются. Нажмите, чтобы включить записи настоящих барабанов';
+    } else if (p.failed) {
+      state = 'fail';
+      label = 'Синтез';
+      title = 'Записи барабанов не загрузились — проверьте интернет. Пока играет синтезатор';
+    } else if (p.loaded < p.total) {
+      state = 'loading';
+      label = 'Загрузка ' + Math.round((p.loaded / Math.max(1, p.total)) * 100) + '%';
+      title = 'Загружаются записи барабанов. Можно играть уже сейчас';
+    }
+    chip.dataset.state = state;
+    text.textContent = label;
+    chip.title = title;
+  }
+
   function toggleSource() {
     settings.source = settings.source === 'samples' ? 'synth' : 'samples';
     save();
+    if (current && settings.source === 'samples' && currentKit()) App.drumkit.preload(currentKit(), current.drumList);
     if (current && useSamples(current.inst)) App.sampler.preload(current.inst.gm, current.preloadList);
     updateSource();
     toast(settings.source === 'samples' ? 'Включены записи живых инструментов' : 'Включён синтезатор — работает и без интернета');
@@ -1238,6 +1298,7 @@
     strings: ['Нажмите на лад — прозвучит нота на этой струне. Самая тонкая струна сверху, как в табулатуре.', 'Выберите аккорд кнопкой под грифом и проведите пальцем по струнам в правой части — это бой.', 'Кнопка аккорда сразу проигрывает его целиком.'],
     bowed: ['Нажмите и держите место на грифе — смычок тянет ноту, пока вы держите.', 'Ведите пальцем вдоль струны — нота плавно сменится, как при игре легато.', 'Можно держать несколько струн сразу.'],
     pads: ['Бейте по пэдам пальцами или мышкой — можно несколькими пальцами одновременно.', 'Удар ближе к центру пэда звучит громче.', 'Расположение пэдов совпадает с рядами клавиатуры компьютера.'],
+    kit: ['Бейте прямо по барабанам и тарелкам — можно несколькими пальцами сразу.', 'Удар по краю малого барабана — это удар по ободу, в середину райда — «колокол».', 'Хай-хэт можно открыть переключателем на панели или клавишей S. Педали внизу тоже нажимаются.', 'Переключатель «Звук» меняет набор: настоящая акустика, драм-машина TR-808 или LinnDrum из 80-х.'],
     bars: ['Ударяйте по пластинам. Если провести по ним — получится глиссандо, как палочкой по ксилофону.', 'Верхний ряд — диезы и бемоли, нижний — основные ноты.'],
     kalimba: ['Касайтесь язычков: самый длинный и низкий в центре, ноты расходятся влево и вправо.', 'Проведите по нескольким язычкам — получится перебор.'],
     harp: ['Проведите пальцем или мышкой поперёк струн — они зазвучат по очереди, как настоящая арфа.', 'Можно щипать и отдельные струны.'],

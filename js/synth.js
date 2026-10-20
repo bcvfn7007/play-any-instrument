@@ -871,7 +871,218 @@
       tone(ctx, v, t, v.out, 'sine', 110, 46, 0.25, 1, 1.2);
       return v;
     },
+    whistle(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.36 * velCurve(vel), 0.5);
+      tone(ctx, v, t, v.out, 'sine', 2950, 2880, 0.3, 1, 0.35);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2900, 6, 0.4, 0.3, 0.02);
+      return v;
+    },
+    cuica(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.4 * velCurve(vel), 0.5);
+      tone(ctx, v, t, v.out, 'sine', 380, 720, 0.18, 1, 0.25);
+      tone(ctx, v, t, v.out, 'sine', 760, 1440, 0.18, 0.3, 0.2);
+      return v;
+    },
+
+    /* Табла: правый барабан (даян) звенит, левый (баян) гудит и «подтягивается» запястьем. */
+    tablaNa(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.42 * velCurve(vel), 1.2);
+      [[1, 1, 0.9], [2.02, 0.5, 0.6], [3.01, 0.32, 0.4], [4.2, 0.12, 0.2]].forEach(([r, a, dec]) => tone(ctx, v, t, v.out, 'sine', 520 * r, 520 * r, 0.01, a, dec));
+      noiseHit(ctx, v, t, v.out, 'bandpass', 4000, 1.5, 0.5, 0.012);
+      return v;
+    },
+    tablaTin(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.4 * velCurve(vel), 1);
+      [[1, 1, 0.75], [2.02, 0.22, 0.3], [3.01, 0.1, 0.18]].forEach(([r, a, dec]) => tone(ctx, v, t, v.out, 'sine', 520 * r, 520 * r, 0.01, a, dec));
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2600, 1.2, 0.25, 0.015);
+      return v;
+    },
+    tablaTun(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.45 * velCurve(vel), 1.6);
+      tone(ctx, v, t, v.out, 'sine', 525, 520, 0.05, 1, 1.4);
+      tone(ctx, v, t, v.out, 'sine', 1050, 1040, 0.05, 0.15, 0.4);
+      return v;
+    },
+    tablaTe(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.45 * velCurve(vel), 0.15);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2500, 1, 1, 0.05);
+      tone(ctx, v, t, v.out, 'sine', 700, 600, 0.02, 0.4, 0.05);
+      return v;
+    },
+    tablaGe(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.7 * velCurve(vel), 1.2);
+      tone(ctx, v, t, v.out, 'sine', 92, 128, 0.35, 1, 0.9);
+      tone(ctx, v, t, v.out, 'sine', 184, 250, 0.35, 0.25, 0.4);
+      noiseHit(ctx, v, t, v.out, 'lowpass', 400, 0.7, 0.4, 0.03);
+      return v;
+    },
+    tablaKe(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.6 * velCurve(vel), 0.2);
+      tone(ctx, v, t, v.out, 'sine', 140, 110, 0.03, 1, 0.07);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 1200, 1, 0.5, 0.03);
+      return v;
+    },
+    tablaDha: (ctx, d, t, vel) => both(DRUMS.tablaNa(ctx, d, t, vel * 0.8), DRUMS.tablaGe(ctx, d, t, vel * 0.8)),
+    tablaDhin: (ctx, d, t, vel) => both(DRUMS.tablaTin(ctx, d, t, vel * 0.8), DRUMS.tablaGe(ctx, d, t, vel * 0.8)),
+
+    /* Дарбука: «дум» в центр, «тек» и «ка» — по краю кувшина. */
+    darbukaDoum(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.8 * velCurve(vel), 0.9);
+      tone(ctx, v, t, v.out, 'sine', 120, 82, 0.08, 1, 0.6);
+      noiseHit(ctx, v, t, v.out, 'lowpass', 500, 0.7, 0.5, 0.04);
+      return v;
+    },
+    darbukaTek(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.5 * velCurve(vel), 0.4);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 3600, 1.4, 1, 0.045);
+      tone(ctx, v, t, v.out, 'sine', 1650, 1650, 0.01, 0.35, 0.18);
+      tone(ctx, v, t, v.out, 'triangle', 820, 760, 0.02, 0.4, 0.04);
+      return v;
+    },
+    darbukaKa(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.68 * velCurve(vel), 0.35);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2900, 1.4, 0.8, 0.04);
+      tone(ctx, v, t, v.out, 'sine', 1500, 1500, 0.01, 0.25, 0.14);
+      return v;
+    },
+    darbukaSlap(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.55 * velCurve(vel), 0.3);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 1700, 1, 1, 0.1);
+      tone(ctx, v, t, v.out, 'sine', 260, 210, 0.03, 0.6, 0.12);
+      return v;
+    },
+    darbukaRoll(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.6 * velCurve(vel), 0.55);
+      for (let i = 0; i < 7; i++) noiseHit(ctx, v, t + i * 0.042, v.out, 'bandpass', 3400 - i * 60, 1.4, 1 - i * 0.08, 0.03);
+      tone(ctx, v, t, v.out, 'sine', 1650, 1650, 0.01, 0.25, 0.4);
+      return v;
+    },
+
+    /* Русские народные: ложки, трещотка, бубен, бубенцы, коробочка, колокольчик, рубель. */
+    spoons(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.6 * velCurve(vel), 0.15);
+      tone(ctx, v, t, v.out, 'sine', 1750, 1500, 0.02, 1, 0.035);
+      tone(ctx, v, t + 0.018, v.out, 'sine', 2300, 2000, 0.02, 0.7, 0.03);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 3200, 2, 0.6, 0.015);
+      return v;
+    },
+    spoonsRoll(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.5 * velCurve(vel), 0.42);
+      for (let i = 0; i < 6; i++) {
+        const f = i % 2 ? 2200 : 1700;
+        tone(ctx, v, t + i * 0.055, v.out, 'sine', f, f * 0.86, 0.02, 1 - i * 0.08, 0.03);
+        noiseHit(ctx, v, t + i * 0.055, v.out, 'bandpass', 3200, 2, 0.4, 0.012);
+      }
+      return v;
+    },
+    rattle(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.75 * velCurve(vel), 0.4);
+      for (let i = 0; i < 14; i++) {
+        noiseHit(ctx, v, t + i * 0.022, v.out, 'bandpass', 1900 + Math.random() * 900, 3, 1 - i * 0.04, 0.012);
+        tone(ctx, v, t + i * 0.022, v.out, 'triangle', 950 + Math.random() * 300, 900, 0.01, 0.25, 0.01);
+      }
+      return v;
+    },
+    buben(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.45 * velCurve(vel), 0.6);
+      tone(ctx, v, t, v.out, 'sine', 190, 150, 0.05, 0.8, 0.12);
+      [0, 0.012, 0.028].forEach((o, i) => noiseHit(ctx, v, t + o, v.out, 'bandpass', 8000 + i * 900, 3, 0.8 - i * 0.2, 0.22));
+      const hp = filter(ctx, 'highpass', 6500, 1);
+      const g = envGain(ctx, t, 0.6, 0.3);
+      hp.connect(g);
+      g.connect(v.out);
+      metal(ctx, v, t, hp, 55);
+      return v;
+    },
+    sleighBells(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.32 * velCurve(vel), 0.6);
+      for (let i = 0; i < 8; i++) {
+        const o = Math.random() * 0.12;
+        tone(ctx, v, t + o, v.out, 'sine', 4200 + Math.random() * 1500, 4200, 0.3, 0.35, 0.12);
+        noiseHit(ctx, v, t + o, v.out, 'bandpass', 9000, 2, 0.45, 0.04);
+      }
+      return v;
+    },
+    korobochka(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.55 * velCurve(vel), 0.15);
+      tone(ctx, v, t, v.out, 'sine', 1150, 1100, 0.01, 1, 0.05);
+      tone(ctx, v, t, v.out, 'sine', 2750, 2750, 0.01, 0.35, 0.03);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2500, 2, 0.3, 0.01);
+      return v;
+    },
+    smallBell(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.22 * velCurve(vel), 2);
+      [[1, 1, 1.5], [2.76, 0.45, 0.8], [5.4, 0.25, 0.4], [8.93, 0.12, 0.2]].forEach(([r, a, dec]) => tone(ctx, v, t, v.out, 'sine', 1850 * r, 1850 * r, 0.01, a, dec));
+      return v;
+    },
+    rubel(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 1.2 * velCurve(vel), 0.65);
+      for (let i = 0; i < 9; i++) noiseHit(ctx, v, t + i * 0.06, v.out, 'bandpass', 1300 + i * 40, 2, 0.9, 0.02);
+      return v;
+    },
+
+    /* Тайко. */
+    taikoNagado(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.8 * velCurve(vel), 1);
+      tone(ctx, v, t, v.out, 'sine', 140, 92, 0.12, 1, 0.65);
+      noiseHit(ctx, v, t, v.out, 'lowpass', 900, 0.7, 0.5, 0.12);
+      return v;
+    },
+    taikoKa(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.5 * velCurve(vel), 0.2);
+      tone(ctx, v, t, v.out, 'sine', 1450, 1350, 0.01, 1, 0.05);
+      tone(ctx, v, t, v.out, 'sine', 3100, 3100, 0.01, 0.3, 0.03);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 3500, 2, 0.5, 0.015);
+      return v;
+    },
+    shime(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.55 * velCurve(vel), 0.35);
+      tone(ctx, v, t, v.out, 'sine', 420, 350, 0.03, 1, 0.14);
+      tone(ctx, v, t, v.out, 'triangle', 840, 720, 0.03, 0.3, 0.06);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2200, 1.2, 0.8, 0.05);
+      return v;
+    },
+    kane(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.22 * velCurve(vel), 1.5);
+      [[1, 1, 1.2], [2.31, 0.6, 0.8], [3.42, 0.4, 0.5], [4.9, 0.2, 0.3]].forEach(([r, a, dec]) => tone(ctx, v, t, v.out, 'sine', 1180 * r, 1180 * r, 0.01, a, dec));
+      noiseHit(ctx, v, t, v.out, 'highpass', 6000, 0.7, 0.4, 0.02);
+      return v;
+    },
+
+    /* Джембе и кахон. */
+    djembeTone(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.55 * velCurve(vel), 0.4);
+      tone(ctx, v, t, v.out, 'sine', 360, 320, 0.03, 1, 0.2);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 1800, 1.2, 0.35, 0.03);
+      return v;
+    },
+    djembeSlap(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.55 * velCurve(vel), 0.25);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2800, 1, 1, 0.07);
+      tone(ctx, v, t, v.out, 'sine', 520, 430, 0.02, 0.45, 0.06);
+      return v;
+    },
+    cajonGhost(ctx, d, t, vel) {
+      const v = drumVoice(ctx, d, t, 0.25 * velCurve(vel), 0.2);
+      noiseHit(ctx, v, t, v.out, 'bandpass', 2400, 0.8, 1, 0.06);
+      tone(ctx, v, t, v.out, 'sine', 160, 120, 0.03, 0.5, 0.07);
+      return v;
+    },
   };
+
+  /** Два удара сразу (например, «дха» на табле — правой и левой рукой). */
+  function both(a, b) {
+    return {
+      sustain: false,
+      sources: [],
+      endTime: Math.max(a.endTime || 0, b.endTime || 0),
+      stop() {},
+      kill(t) {
+        a.kill(t);
+        b.kill(t);
+      },
+    };
+  }
 
   function tom(ctx, d, t, vel, f) {
     const v = drumVoice(ctx, d, t, 0.6 * velCurve(vel), 0.8);

@@ -62,7 +62,7 @@
     function hit(i, vel) {
       const p = pads[i];
       if (!p) return;
-      ctx.drum(p.sound, vel);
+      ctx.drum(p.sound, vel * (p.vel || 1));
       const el = grid.children[i];
       el.classList.remove('hit');
       void el.offsetWidth;
@@ -85,14 +85,9 @@
       up: () => {},
     });
 
-    ctx.setHints([
-      rowsUsed === 4 ? ['1 2 3 4', 'верхний ряд'] : null,
-      ['Q W E R', 'ряд ' + (rowsUsed === 4 ? '2' : '1')],
-      ['A S D F', 'ряд ' + (rowsUsed === 4 ? '3' : '2')],
-      ['Z X C V', 'ряд ' + (rowsUsed === 4 ? '4' : '3')],
-      bySound.has('kick') ? ['Пробел', 'бочка'] : null,
-      ['U I O P …', 'вторая рука'],
-    ]);
+    ctx.setHints(LEFT.slice(firstRow).map((row, r) => [row.map(App.keymap.label).join(' '), 'ряд ' + (r + 1)])
+      .concat([bySound.has('kick') ? ['Пробел', 'бочка'] : null, [RIGHT[firstRow].map(App.keymap.label).join(' ') + ' …', 'вторая рука']]));
+    ctx.preloadDrums([...new Set(pads.map((p) => p.sound))]);
 
     return {
       keydown(code, e) {
@@ -104,7 +99,8 @@
       keyup: (code) => codeToPad[code] != null,
       external(midi, on, vel) {
         if (!on) return;
-        const sound = GM_DRUMS[midi];
+        const sounds = App.drumkit.sounds;
+        const sound = Object.keys(sounds).find((s) => sounds[s].gm === midi) || GM_DRUMS[midi];
         const i = pads.findIndex((p) => p.sound === sound);
         if (i >= 0) hit(i, vel);
         else hit(midi % pads.length, vel);

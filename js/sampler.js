@@ -86,6 +86,44 @@
     return p;
   }
 
+  /* ---------- Отдельные файлы по адресу (удары барабанов) ---------- */
+
+  const urlBuffers = new Map();
+  const urlPending = new Map();
+
+  sampler.cached = (url) => urlBuffers.get(url) || null;
+  sampler.groupFailed = (group) => (failures.get(group) || 0) >= 3;
+  sampler.resetGroup = (group) => failures.set(group, 0);
+
+  /** Загрузить файл один раз; group — общий счётчик ошибок (например, весь набор барабанов). */
+  sampler.fetchUrl = function (url, group) {
+    if (urlBuffers.has(url)) return Promise.resolve(urlBuffers.get(url));
+    if (urlPending.has(url)) return urlPending.get(url);
+    if (sampler.groupFailed(group)) return Promise.resolve(null);
+    const ctx = App.audio.context();
+    const p = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+      .then((buf) => {
+        urlBuffers.set(url, buf);
+        failures.set(group, 0);
+        return buf;
+      })
+      .catch(() => {
+        failures.set(group, (failures.get(group) || 0) + 1);
+        return null;
+      })
+      .finally(() => {
+        urlPending.delete(url);
+        emit(group);
+      });
+    urlPending.set(url, p);
+    return p;
+  };
+
   /** Ближайшая загруженная нота в пределах ±range полутонов. */
   function nearest(gm, m, range) {
     for (let d = 0; d <= range; d++) {

@@ -23,6 +23,7 @@
     circle: 'тон-поля',
     xy: 'поле',
     beat: 'секвенсор',
+    kit: 'установка',
   };
 
   const GUITAR = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'];
@@ -30,39 +31,63 @@
   const SUSTAIN_LOOP = [0.22, 0.88];
   const BODY = [{ type: 'peaking', f: 105, q: 1.1, g: 4 }, { type: 'peaking', f: 2400, q: 0.9, g: 2.5 }, { type: 'lowpass', f: 7500, q: 0.5 }];
 
-  const DRUM_KIT = [
-    { sound: 'crash', name: 'Тарелка крэш' },
-    { sound: 'ride', name: 'Тарелка райд' },
-    { sound: 'hatOpen', name: 'Хай-хэт открытый' },
-    { sound: 'hatClosed', name: 'Хай-хэт' },
-    { sound: 'tomHigh', name: 'Том высокий' },
-    { sound: 'tomMid', name: 'Том средний' },
-    { sound: 'tomLow', name: 'Том напольный' },
-    { sound: 'hatPedal', name: 'Хай-хэт педалью' },
-    { sound: 'kick', name: 'Бочка' },
-    { sound: 'snare', name: 'Малый барабан' },
-    { sound: 'clap', name: 'Хлопок' },
-    { sound: 'rim', name: 'Римшот' },
-  ];
+  const pads = (rows) => rows.map(([sound, name, vel]) => ({ sound, name, vel }));
 
-  const PERCUSSION = [
-    { sound: 'bongoHigh', name: 'Бонго высокий' },
-    { sound: 'bongoLow', name: 'Бонго низкий' },
-    { sound: 'congaHigh', name: 'Конга высокая' },
-    { sound: 'congaLow', name: 'Конга низкая' },
-    { sound: 'djembe', name: 'Джембе' },
-    { sound: 'cajon', name: 'Кахон' },
-    { sound: 'cajonSlap', name: 'Кахон, шлепок' },
-    { sound: 'taiko', name: 'Тайко' },
-    { sound: 'tambourine', name: 'Бубен' },
-    { sound: 'shaker', name: 'Шейкер' },
-    { sound: 'triangle', name: 'Треугольник' },
-    { sound: 'cowbell', name: 'Ковбелл' },
-    { sound: 'woodblock', name: 'Вуд-блок' },
-    { sound: 'claves', name: 'Клавесы' },
-    { sound: 'agogo', name: 'Агого' },
-    { sound: 'guiro', name: 'Гуиро' },
-  ];
+  // Пэды идут рядами по 4 — так же, как ряды клавиатуры компьютера (1 2 3 4, Q W E R, A S D F, Z X C V).
+  const DRUM_KIT = pads([
+    ['crash', 'Тарелка крэш'], ['splash', 'Сплэш'], ['ride', 'Тарелка райд'], ['rideBell', 'Колокол райда'],
+    ['hatOpen', 'Хай-хэт открытый'], ['hatClosed', 'Хай-хэт'], ['tomHigh', 'Том высокий'], ['tomMid', 'Том средний'],
+    ['hatPedal', 'Хай-хэт педалью'], ['tomLow', 'Том напольный'], ['clap', 'Хлопок'], ['cowbell', 'Ковбелл'],
+    ['kick', 'Бочка'], ['snare', 'Малый барабан'], ['rim', 'Удар по ободу'], ['china', 'Чайна'],
+  ]);
+
+  const PERCUSSION = pads([
+    ['bongoHigh', 'Бонго высокий'], ['bongoLow', 'Бонго низкий'], ['congaMute', 'Конга приглушённая'], ['congaHigh', 'Конга высокая'],
+    ['congaLow', 'Конга низкая'], ['timbaleHigh', 'Тимбалес высокий'], ['timbaleLow', 'Тимбалес низкий'], ['cowbell', 'Ковбелл'],
+    ['agogo', 'Агого'], ['tambourine', 'Бубен'], ['shaker', 'Маракасы'], ['cabasa', 'Кабаса'],
+    ['guiro', 'Гуиро'], ['claves', 'Клавесы'], ['woodblock', 'Вуд-блок'], ['triangle', 'Треугольник'],
+  ]);
+
+  const TR808 = pads([
+    ['crash', 'Тарелка'], ['hatOpen', 'Открытый хэт'], ['hatClosed', 'Хай-хэт'], ['cowbell', 'Ковбелл'],
+    ['tomHigh', 'Том высокий'], ['tomMid', 'Том средний'], ['tomLow', 'Том низкий'], ['congaHigh', 'Конга'],
+    ['claves', 'Клавесы'], ['shaker', 'Маракас'], ['rim', 'Римшот'], ['clap', 'Хлопок'],
+    ['kick', 'Бочка 808'], ['kick2', 'Бочка короткая'], ['snare', 'Малый'], ['snare2', 'Малый звонкий'],
+  ]);
+
+  const LINN = pads([
+    ['crash', 'Тарелка крэш'], ['ride', 'Тарелка райд'], ['hatOpen', 'Открытый хэт'], ['hatClosed', 'Хай-хэт'],
+    ['tomHigh', 'Том высокий'], ['tomMid', 'Том средний'], ['tomLow', 'Том низкий'], ['hatPedal', 'Хэт короткий'],
+    ['cowbell', 'Ковбелл'], ['tambourine', 'Бубен'], ['cabasa', 'Кабаса'], ['rim', 'Палочка по ободу'],
+    ['kick', 'Бочка'], ['snare', 'Малый'], ['snare2', 'Малый звонкий'], ['clap', 'Хлопок'],
+  ]);
+
+  const TABLA = pads([
+    ['tablaNa', 'На — звонко'], ['tablaTin', 'Тин'], ['tablaTun', 'Тун — гулко'], ['tablaTe', 'Те — глухо'],
+    ['tablaGe', 'Ге — бас'], ['tablaKe', 'Ке — шлепок'], ['tablaDha', 'Дха — обе руки'], ['tablaDhin', 'Дхин — обе руки'],
+  ]);
+
+  const DARBUKA = pads([
+    ['darbukaDoum', 'Дум — в центр'], ['darbukaTek', 'Тек — по краю'], ['darbukaKa', 'Ка — другой рукой'], ['darbukaSlap', 'Слэп'],
+    ['darbukaRoll', 'Дробь'], ['darbukaDoum', 'Дум тихо', 0.45], ['darbukaTek', 'Тек тихо', 0.45], ['darbukaKa', 'Ка тихо', 0.45],
+  ]);
+
+  const RUSSIAN = pads([
+    ['spoons', 'Ложки'], ['spoonsRoll', 'Ложки, дробь'], ['rattle', 'Трещотка'], ['buben', 'Бубен'],
+    ['sleighBells', 'Бубенцы'], ['korobochka', 'Коробочка'], ['smallBell', 'Колокольчик'], ['rubel', 'Рубель'],
+  ]);
+
+  const TAIKO = pads([
+    ['taiko', 'Одайко — большой'], ['taikoNagado', 'Нагадо — средний'], ['shime', 'Симэ — малый'], ['taikoKa', 'Ка — по ободу'],
+    ['kane', 'Канэ — гонг'], ['taiko', 'Одайко тихо', 0.5], ['taikoNagado', 'Нагадо тихо', 0.5], ['shime', 'Симэ тихо', 0.5],
+  ]);
+
+  const HAND_DRUMS = pads([
+    ['djembe', 'Джембе, бас'], ['djembeTone', 'Джембе, тон'], ['djembeSlap', 'Джембе, шлепок'], ['shaker', 'Шейкер'],
+    ['cajon', 'Кахон, бас'], ['cajonSlap', 'Кахон, шлепок'], ['cajonGhost', 'Кахон, тихо'], ['tambourine', 'Бубен'],
+  ]);
+
+  const SAMPLE_KITS = ['acoustic', 'tr808', 'linn'];
 
   const list = [
     /* ---- Клавишные ---- */
@@ -112,9 +137,16 @@
     { id: 'bagpipe', name: 'Волынка', icon: '🎶', family: 'winds', layout: 'keys', voice: 'bagpipe', gm: 'bagpipe', mode: 'sustain', loop: SUSTAIN_LOOP, start: 60, tags: 'шотландия' },
 
     /* ---- Барабаны и ритм ---- */
-    { id: 'drums', name: 'Барабанная установка', icon: '🥁', family: 'drums', layout: 'pads', pads: DRUM_KIT, mode: 'oneshot', reverb: 0.5, tags: 'барабаны ударные drums', featured: true },
-    { id: 'percussion', name: 'Перкуссия', icon: '🪘', family: 'drums', layout: 'pads', pads: PERCUSSION, mode: 'oneshot', reverb: 0.7, tags: 'бонго конга джембе кахон бубен шейкер' },
-    { id: 'beatmaker', name: 'Драм-машина', icon: '🎛️', family: 'drums', layout: 'beat', mode: 'oneshot', reverb: 0.4, tags: 'бит ритм секвенсор битмейкер', featured: true },
+    { id: 'drums', name: 'Барабанная установка', icon: '🥁', family: 'drums', layout: 'kit', alt: ['pads'], pads: DRUM_KIT, kit: 'acoustic', kits: SAMPLE_KITS, mode: 'oneshot', reverb: 0.5, tags: 'барабаны ударные drums установка', featured: true },
+    { id: 'percussion', name: 'Латинская перкуссия', icon: '🪘', family: 'drums', layout: 'pads', pads: PERCUSSION, kit: 'acoustic', mode: 'oneshot', reverb: 0.7, tags: 'перкуссия бонго конга тимбалес бубен маракасы треугольник' },
+    { id: 'beatmaker', name: 'Драм-машина', icon: '🎛️', family: 'drums', layout: 'beat', kit: 'acoustic', kits: SAMPLE_KITS, mode: 'oneshot', reverb: 0.4, tags: 'бит ритм секвенсор битмейкер', featured: true },
+    { id: 'tr808', name: 'TR-808', icon: '🔴', family: 'drums', layout: 'pads', pads: TR808, kit: 'tr808', mode: 'oneshot', reverb: 0.3, tags: 'драм-машина 808 хип-хоп трэп электронные барабаны roland' },
+    { id: 'linndrum', name: 'LinnDrum 80-х', icon: '📼', family: 'drums', layout: 'pads', pads: LINN, kit: 'linn', mode: 'oneshot', reverb: 0.6, tags: 'драм-машина линн 80-е восьмидесятые электронные барабаны' },
+    { id: 'hand-drums', name: 'Джембе и кахон', icon: '🪘', family: 'drums', layout: 'pads', pads: HAND_DRUMS, mode: 'oneshot', reverb: 0.6, tags: 'джембе кахон ручные барабаны африка' },
+    { id: 'tabla', name: 'Табла', icon: '🪷', family: 'drums', layout: 'pads', pads: TABLA, mode: 'oneshot', reverb: 0.8, tags: 'индия индийские барабаны' },
+    { id: 'darbuka', name: 'Дарбука', icon: '🏺', family: 'drums', layout: 'pads', pads: DARBUKA, mode: 'oneshot', reverb: 0.7, tags: 'думбек восток арабские барабаны' },
+    { id: 'taiko', name: 'Тайко', icon: '⛩️', family: 'drums', layout: 'pads', pads: TAIKO, mode: 'oneshot', reverb: 1.4, tags: 'япония японские барабаны' },
+    { id: 'russian-percussion', name: 'Ложки и трещотка', icon: '🥄', family: 'drums', layout: 'pads', pads: RUSSIAN, mode: 'oneshot', reverb: 0.7, tags: 'русские народные ударные ложки трещотка бубен бубенцы' },
     { id: 'timpani', name: 'Литавры', icon: '🥁', family: 'drums', layout: 'keys', voice: 'timpani', gm: 'timpani', mode: 'ring', start: 36, reverb: 1.6, tags: 'оркестр' },
 
     /* ---- Звонкие ---- */
