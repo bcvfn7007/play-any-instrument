@@ -20,10 +20,11 @@
     const octave = App.ui.stepper('Октава', (d) => shift(d));
     ctx.deck.append(octave.el);
 
+    const K = App.keymap;
     ctx.setHints([
-      ['Z … M', 'нижняя октава'],
-      ['Q … P', 'верхняя октава'],
-      ['← →', 'сменить октаву'],
+      [K.span(K.chromaticLow.slice(0, 12)), 'нижняя октава'],
+      [K.span(K.chromaticHigh.slice(0, 17)), 'верхняя октава'],
+      [K.span(['ArrowLeft', 'ArrowRight']), 'сменить октаву'],
       [null, 'проведите пальцем по пластинам — получится глиссандо'],
     ]);
 
@@ -100,9 +101,9 @@
       down: (el) => presser.press(+el.dataset.midi, 0.85),
       up: (pr) => presser.release(pr),
     });
-    const keys = App.keyHolder((code) => {
+    const keys = App.keyHolder((code, e) => {
       const off = App.keymap.chromatic[code];
-      return off == null ? undefined : presser.press(start + off, 0.85);
+      return off == null ? undefined : presser.press(start + off, App.keyVel(e, 0.85));
     }, (pr) => presser.release(pr));
 
     const ro = new ResizeObserver(measure);
@@ -110,12 +111,12 @@
     measure();
 
     return {
-      keydown(code) {
+      keydown(code, e) {
         if (code === 'ArrowLeft' || code === 'ArrowRight') {
           shift(code === 'ArrowLeft' ? -1 : 1);
           return true;
         }
-        return keys.down(code);
+        return keys.down(code, e);
       },
       keyup: (code) => keys.up(code),
       external: (midi, on, vel) => presser.external(midi, on, vel),
@@ -124,6 +125,8 @@
         tracker.releaseAll();
       },
       refresh: render,
+      keyActions: () => App.keymap.chromaticActions(start, ctx.noteName)
+        .concat([{ title: 'Управление', items: [{ code: 'ArrowLeft', label: 'Октава ниже' }, { code: 'ArrowRight', label: 'Октава выше' }] }]),
       highlightNext: (m) => nextMark.set(m),
       playable: () => notes.slice(),
       playableFrom: (lo) => notesFrom(clampStart(12 * Math.floor(lo / 12))),
@@ -196,22 +199,23 @@
       down: (el) => presser.press(+el.dataset.midi, 0.85),
       up: (pr) => presser.release(pr),
     });
-    const keys = App.keyHolder((code) => {
+    const keys = App.keyHolder((code, e) => {
       const d = App.keymap.diatonic[code];
-      return d == null || d >= COUNT ? undefined : presser.press(degrees[d], 0.85);
+      return d == null || d >= COUNT ? undefined : presser.press(degrees[d], App.keyVel(e, 0.85));
     }, (pr) => presser.release(pr));
 
+    const row = (r) => App.keymap.span(App.keymap.diatonicRows[r].slice(0, 7));
     ctx.setHints([
-      ['Z X C V …', 'первая октава'],
-      ['A S D F …', 'вторая октава'],
-      ['Q W E R …', 'третья октава'],
+      [row(0), 'первая октава'],
+      [row(1), 'вторая октава'],
+      [row(2), 'третья октава'],
       [null, 'цифры на язычках — ступени лада, как в сборниках для калимбы'],
     ]);
     render();
     ctx.preload(degrees);
 
     return {
-      keydown: (code) => keys.down(code),
+      keydown: (code, e) => keys.down(code, e),
       keyup: (code) => keys.up(code),
       external: (midi, on, vel) => presser.external(midi, on, vel),
       releaseAll() {
@@ -219,6 +223,7 @@
         tracker.releaseAll();
       },
       refresh: render,
+      keyActions: () => App.keymap.diatonicActions((d) => degrees[d], COUNT, ctx.noteName),
       highlightNext: (m) => nextMark.set(m),
       playable: () => degrees.slice(),
       destroy() {

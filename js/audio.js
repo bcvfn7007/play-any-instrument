@@ -78,6 +78,12 @@
     if (master) master.gain.setTargetAtTime(v, audio.ctx.currentTime, 0.02);
   };
 
+  /** Подмешать внешний звук (микрофон, живой звук друга) в общий выход — он попадёт и в запись. */
+  audio.mixIn = function (node) {
+    audio.ensure();
+    node.connect(master);
+  };
+
   audio.setReverb = function (v) {
     audio.settings.reverb = v;
     buses.forEach((b) => b.updateSend());

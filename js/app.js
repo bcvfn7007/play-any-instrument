@@ -1,4 +1,4 @@
-/* Приложение: главная, экран игры, панели, запись, метроном, MIDI и настройки. */
+/* Приложение: главная, экран игры, панели, запись, метроном и настройки. */
 (function () {
   const App = window.App;
   const h = App.h;
@@ -22,6 +22,10 @@
     synth: { wave: 'sawtooth', cutoff: 2600, q: 5, attack: 0.008, release: 0.22, detune: 12 },
     bpm: 100,
     beats: 4,
+    keys: {}, // раскладка → свои клавиши {настоящая клавиша: клавиша по умолчанию | null}
+    net: { nick: '', auto: false, volume: 0.9 },
+    live: { midiOff: [], drumChannel: true, micMode: 'tuner', gate: -50, monitor: false, deviceId: '' },
+    learn: { speed: 1, acc: true, accVolume: 0.8 },
   };
 
   const settings = (App.settings = load());
@@ -30,7 +34,9 @@
     const base = JSON.parse(JSON.stringify(DEFAULTS));
     try {
       const saved = JSON.parse(localStorage.getItem(STORE) || '{}');
-      return Object.assign(base, saved, { synth: Object.assign(base.synth, saved.synth) });
+      const nested = {};
+      ['synth', 'net', 'live', 'learn'].forEach((k) => (nested[k] = Object.assign(base[k], saved[k])));
+      return Object.assign(base, saved, nested);
     } catch (e) {
       return base;
     }
@@ -114,6 +120,7 @@
     dlg.append(inner);
     dlg.addEventListener('close', () => {
       dlg.remove();
+      App.online.rehome();
       if (opts && opts.onClose) opts.onClose();
     });
     dlg.addEventListener('click', (e) => {
@@ -121,6 +128,7 @@
     });
     document.body.append(dlg);
     dlg.showModal();
+    App.online.rehome(); // запрос «пустить?» должен оставаться нажимаемым
     return dlg;
   }
 
@@ -159,10 +167,15 @@
     const sections = h('div.sections');
     const hero = heroTubes();
 
+    const together = h('button.btn.net-home', { type: 'button', title: 'Играть вместе с друзьями по нику', onClick: () => App.online.open() },
+      App.icon('users'), h('span.btn-label', null, 'Играть вместе'), h('span.badge', { hidden: true }));
     app.append(h('div.home', null,
       h('header.site-head', null,
         h('a.wordmark', { href: '#/' }, wordmark()),
-        h('div.head-actions', null, iconButton('settings', 'Настройки', () => openSettings()))),
+        h('div.head-actions', null,
+          together,
+          iconButton('plug', 'Подключить настоящий инструмент: MIDI или микрофон', () => App.live.open(), 'live-btn'),
+          iconButton('settings', 'Настройки', () => openSettings()))),
       h('section.hero', null,
         h('div.hero-text', null,
           h('h1', null, 'На чём сыграем?'),
@@ -175,6 +188,8 @@
         h('p', null, 'Записи живых инструментов — библиотека FluidR3 GM, барабанов — MusyngKite и коллекция драм-машин smpldsnds. Без интернета всё звучит через встроенный синтезатор.'))));
 
     renderSections(sections);
+    updateNetButtons();
+    App.live.decorate();
     search.addEventListener('input', () => filter(search.value, results, sections));
     search.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -347,30 +362,44 @@
   const useSamples = (inst) => settings.source === 'samples' && !!inst.gm && !App.sampler.failed(inst.gm);
   const voiceOpts = (inst) => (inst.editable ? settings.synth : inst.voiceOpts);
 
-  function sound(midi, vel, extra) {
-    const ac = App.audio.ensure();
-    const inst = current.inst;
-    const t = ac.currentTime + ((extra && extra.delay) || 0);
-    const b = buses();
+  // Откуда пришла нота, которую сейчас играет раскладка: 'mic' | 'midi' | null (руками).
+  let inputFrom = null;
+  // «Без звука»: ноту с микрофона засчитываем и подсвечиваем, но не озвучиваем.
+  let quiet = false;
+  const silentVoice = () => ({ silent: true, sustain: true, endTime: 0, stop() {}, kill() {} });
+
+  function voiceFor(inst, b, midi, vel, t) {
     let v = null;
     if (useSamples(inst)) v = App.sampler.play(inst, midi, vel, b.sample.input, t);
     if (!v) v = App.synth.play(inst.voice || 'piano', midi, vel, b.synth.input, t, voiceOpts(inst));
     return App.audio.track(v);
   }
 
-  /** Нота, сыгранная человеком (пальцем, мышью, клавиатурой или MIDI). */
+  function sound(midi, vel, extra) {
+    const ac = App.audio.ensure();
+    if (quiet) return silentVoice();
+    return voiceFor(current.inst, buses(), midi, vel, ac.currentTime + ((extra && extra.delay) || 0));
+  }
+
+  /** Нота, сыгранная человеком (пальцем, мышью, клавиатурой, MIDI или микрофоном). */
   function noteOn(midi, vel, extra) {
     const v = sound(midi, vel, extra);
-    learnHeard(midi);
+    App.learn.heard(midi, inputFrom);
+    App.online.note(v, current.inst, midi, vel, (extra && extra.delay) || 0);
     return v;
   }
 
-  function release(v) {
+  function releaseVoice(v, inst) {
     if (!v.sustain) {
       v.sustain = true;
-      v.release = current ? current.inst.release || 0.15 : 0.15;
+      v.release = inst ? inst.release || 0.15 : 0.15;
     }
     v.stop(App.audio.ctx.currentTime);
+  }
+
+  function release(v) {
+    App.online.off(v);
+    releaseVoice(v, current && current.inst);
   }
 
   function noteOff(v) {
@@ -388,7 +417,9 @@
   }
 
   function kill(v, delay) {
-    if (v) v.kill(App.audio.ctx.currentTime + (delay || 0));
+    if (!v) return;
+    App.online.kill(v, delay || 0);
+    v.kill(App.audio.ctx.currentTime + (delay || 0));
   }
 
   /** Какой набор записей звучит у барабанов: выбранный человеком или заданный инструментом. */
@@ -405,7 +436,25 @@
     let v = null;
     if (kit && settings.source === 'samples') v = App.drumkit.play(kit, sound, vel, buses().sample.input, t);
     if (!v) v = App.synth.drum(App.drumkit.fallback(sound), vel, buses().synth.input, t);
+    App.online.drum(current.inst, kit, sound, vel, Math.max(0, t - ac.currentTime));
     return App.audio.track(v);
+  }
+
+  /** Удар с электронных барабанов (10-й MIDI-канал), когда открыт не барабанный инструмент. */
+  function drumGM(note, vel) {
+    if (!current) return false;
+    const sounds = App.drumkit.sounds;
+    const sound = Object.keys(sounds).find((s) => sounds[s].gm === note);
+    if (!sound) return false;
+    const ac = App.audio.ensure();
+    const kit = currentKit() || 'acoustic';
+    const b = { synth: App.audio.bus('edrums:synth', { reverb: 0.5 }), sample: App.audio.bus('edrums:sample', { reverb: 0.5 }) };
+    let v = null;
+    if (settings.source === 'samples') v = App.drumkit.play(kit, sound, vel, b.sample.input, ac.currentTime);
+    if (!v) v = App.synth.drum(App.drumkit.fallback(sound), vel, b.synth.input, ac.currentTime);
+    App.audio.track(v);
+    App.online.drum(current.inst, kit, sound, vel, 0);
+    return true;
   }
 
   function kitSwitch(inst) {
@@ -414,6 +463,7 @@
       App.ui.segmented(inst.kits.map((k) => [k, App.drumkit.kits[k].name]), currentKit(), (v) => {
         settings.drumKit[inst.id] = v;
         save();
+        App.online.setInstrument(inst, v);
         if (settings.source === 'samples') App.drumkit.preload(v, current.drumList);
         updateSource();
       }, 'Набор звуков').el);
@@ -421,8 +471,121 @@
 
   function continuous(f) {
     App.audio.ensure();
-    return App.audio.track(App.synth.continuous(buses().synth.input, f));
+    const v = App.audio.track(App.synth.continuous(buses().synth.input, f));
+    return App.online.continuous(v, current.inst, f);
   }
+
+  /* ---------- Ноты извне: MIDI, микрофон, MIDI-пэды на своих клавишах ---------- */
+
+  /** Нота с MIDI-инструмента или микрофона → текущая раскладка. from: 'midi' | 'mic'. */
+  function external(midi, on, vel, from, silent) {
+    if (!current || !current.layout || !current.layout.external) return false;
+    App.audio.ensure();
+    inputFrom = from || null;
+    quiet = !!silent;
+    try {
+      current.layout.external(midi, on, vel);
+    } finally {
+      inputFrom = null;
+      quiet = false;
+    }
+    return true;
+  }
+
+  /** Нажать «клавишу по умолчанию» code — так MIDI-пэд, назначенный на клавишу, бьёт по барабану. */
+  function keyAction(code, down, vel) {
+    if (!current || !current.layout || !code) return false;
+    App.audio.ensure();
+    const e = { code, repeat: false, shiftKey: false, velocity: vel };
+    return down ? current.layout.keydown(code, e) : current.layout.keyup(code, e);
+  }
+
+  function pedal(on) {
+    setSustain(on);
+    if (current && current.layout && current.layout.setSustain) current.layout.setSustain(on);
+  }
+
+  /* ---------- Звук «со стороны»: друзья по сети и аккомпанемент песни ---------- */
+
+  /**
+   * Свой набор шин для любого инструмента и общая громкость: так ноты друга или партия
+   * аккомпанемента звучат своим инструментом, не мешая вашему.
+   */
+  function makeEngine(prefix, volume) {
+    const all = new Map();
+    const level = (b) => {
+      const v = volume();
+      b.synth.input.gain.value = b.level * v;
+      b.sample.input.gain.value = v;
+    };
+    const busesOf = (inst) => {
+      let b = all.get(inst.id);
+      if (!b) {
+        b = {
+          level: inst.level || 1,
+          synth: App.audio.bus(prefix + ':' + inst.id + ':synth', { fx: inst.fx, reverb: inst.reverb, level: inst.level }),
+          sample: App.audio.bus(prefix + ':' + inst.id + ':sample', { reverb: inst.reverb }),
+        };
+        all.set(inst.id, b);
+        level(b);
+      }
+      return b;
+    };
+    return {
+      note(inst, midi, vel, delay) {
+        const ac = App.audio.ensure();
+        return voiceFor(inst, busesOf(inst), midi, vel, ac.currentTime + delay);
+      },
+      /** Нота в точное время at (по часам звука) длительностью dur секунд. */
+      play(inst, midi, vel, at, dur) {
+        App.audio.ensure();
+        const v = voiceFor(inst, busesOf(inst), midi, vel, at);
+        if (dur) {
+          v.sustain = true;
+          v.release = Math.min(0.3, inst.release || 0.12);
+          v.stop(at + dur);
+        }
+        return v;
+      },
+      release(v, inst) {
+        if (inst.mode === 'sustain') releaseVoice(v, inst);
+      },
+      kill(v, delay) {
+        v.kill(App.audio.ensure().currentTime + delay);
+      },
+      drum(inst, kit, sound, vel, delay) {
+        const ac = App.audio.ensure();
+        const t = ac.currentTime + Math.max(0, delay);
+        const b = busesOf(inst);
+        let v = null;
+        if (kit && App.drumkit.kits[kit] && settings.source === 'samples') v = App.drumkit.play(kit, sound, vel, b.sample.input, t);
+        if (!v) v = App.synth.drum(App.drumkit.fallback(sound), vel, b.synth.input, t);
+        return App.audio.track(v);
+      },
+      continuous(inst, f) {
+        App.audio.ensure();
+        return App.audio.track(App.synth.continuous(busesOf(inst).synth.input, f));
+      },
+      /** Заранее подгружаем записи инструмента. */
+      preload(inst, kit) {
+        if (settings.source !== 'samples') return;
+        if (inst.gm) {
+          const from = (inst.start || 48) - 5;
+          App.sampler.preload(inst.gm, Array.from({ length: 36 }, (_, i) => from + i));
+        }
+        if (kit && App.drumkit.kits[kit]) App.drumkit.preload(kit, ['kick', 'snare', 'rim', 'hatClosed', 'hatOpen', 'tomHigh', 'tomMid', 'tomLow', 'crash', 'ride', 'clap']);
+      },
+      refresh: () => all.forEach(level),
+    };
+  }
+
+  const remote = makeEngine('net', () => settings.net.volume);
+  remote.setVolume = (v) => {
+    settings.net.volume = v;
+    save();
+    remote.refresh();
+  };
+  const band = makeEngine('acc', () => settings.learn.accVolume);
 
   function releaseHeld() {
     if (current && current.layout) current.layout.releaseAll();
@@ -445,25 +608,36 @@
     app.textContent = '';
     const layoutName = pickLayout(inst);
     const bar = buildBar(inst);
+    const band = h('div.band', { hidden: true, role: 'status', 'aria-label': 'Кто играет вместе с вами' });
     const deck = h('div.deck', { role: 'toolbar', 'aria-label': 'Настройки инструмента' });
     const learnBar = h('section.learn', { hidden: true, 'aria-label': 'Разучивание мелодии' });
     const stage = h('main.stage');
     const hints = h('footer.hints', { 'aria-label': 'Подсказки' });
-    const page = h('div.play', { style: { '--fam': hueOf(inst) } }, bar.el, deck, learnBar, stage, hints);
+    const page = h('div.play', { style: { '--fam': hueOf(inst) } }, bar.el, band, deck, learnBar, stage, hints);
     app.append(page);
-    current = { inst, layoutName, page, bar, deck, stage, hints, layout: null, preloadList: [], drumList: [], buses: null, learnUi: buildLearnBar(learnBar) };
+    current = { inst, layoutName, page, bar, band, deck, stage, hints, layout: null, preloadList: [], drumList: [], buses: null };
+    App.learn.mount(learnBar);
     mountLayout();
+    App.online.renderBand(band);
+    App.online.setInstrument(inst, currentKit());
+    updateNetButtons();
+    App.live.decorate();
     window.scrollTo(0, 0);
   }
 
   function teardownPlay() {
     if (!current) return;
-    stopSong();
+    App.learn.stop();
     releaseHeld();
     if (current.layout) current.layout.destroy();
+    App.keymap.use(null);
     closePopover();
     current = null;
+    App.online.setInstrument(null, null);
   }
+
+  /** Свои клавиши хранятся отдельно для каждого вида раскладки (у стил-драма — свои). */
+  const schemeOf = (c) => (c.layoutName === 'circle' && c.inst.style === 'steelpan' ? 'steelpan' : c.layoutName);
 
   function mountLayout() {
     const c = current;
@@ -472,8 +646,7 @@
       c.layout.destroy();
       c.layout = null; // пока строится новая раскладка, старой уже нет
     }
-    stopDemo();
-    hideDone();
+    App.learn.pause();
     c.deck.textContent = '';
     c.stage.textContent = '';
     c.hints.textContent = '';
@@ -481,12 +654,18 @@
     c.stage.className = 'stage layout-' + c.layoutName + (c.inst.style ? ' style-' + c.inst.style : '');
     if (c.inst.alt) c.deck.append(layoutSwitch(c.inst));
     if (c.inst.kits) c.deck.append(kitSwitch(c.inst));
+    App.keymap.use(settings.keys[schemeOf(c)]);
     const factory = App.layouts[c.layoutName];
     c.layout = factory(c.stage, makeCtx(c));
+    if (c.layout.keyActions && !coarse) {
+      c.hints.append(h('button.hint-edit', { type: 'button', title: 'Назначить свои клавиши для этого инструмента', onClick: () => App.keybind.open() },
+        App.icon('keyboard'), 'Свои клавиши'));
+      c.hints.hidden = false;
+    }
     if (c.inst.editable) c.deck.append(synthEditor());
     // Разучивать можно там, где у каждой ноты своё место: не на барабанах, драм-машине и терменвоксе.
     if (c.layout.highlightNext) {
-      c.deck.append(h('button.btn.learn-btn', { type: 'button', title: 'Выбрать песню и сыграть её по подсказкам', onClick: openSongs },
+      c.deck.append(h('button.btn.learn-btn', { type: 'button', title: 'Выбрать песню и сыграть её по подсказкам', onClick: () => App.learn.open() },
         App.icon('note'), 'Разучить мелодию'));
     }
     if (['keys', 'strings', 'bars', 'beat', 'harp', 'kit'].includes(c.layoutName)) {
@@ -494,7 +673,7 @@
     }
     c.deck.hidden = !c.deck.children.length;
     updateSource();
-    learnAttach();
+    App.learn.attach();
   }
 
   function makeCtx(c) {
@@ -513,6 +692,8 @@
       toast,
       label: (m, withOct) => N.name(m, settings.labels, withOct),
       labelMode: () => settings.labels,
+      /** Название ноты с октавой — даже если подписи на инструменте выключены. */
+      noteName: (m) => N.name(m, settings.labels === 'latin' ? 'latin' : 'ru', true),
       showKeys: () => settings.keyHints && !coarse,
       getState: (k, d) => (st[k] !== undefined ? st[k] : d),
       setState(k, v) {
@@ -521,7 +702,7 @@
       },
       setHints: (items) => renderHints(c.hints, items),
       /** Раскладка перерисовалась: сменилась октава или ширина. */
-      viewChanged: () => learnViewChanged(),
+      viewChanged: () => App.learn.viewChanged(),
       preload(midis) {
         c.preloadList = midis;
         if (useSamples(inst)) App.sampler.preload(inst.gm, midis);
@@ -539,7 +720,8 @@
 
   function renderHints(el, items) {
     el.textContent = '';
-    items.filter(Boolean).forEach(([keys, text]) => {
+    // Пустая строка вместо клавиш — все клавиши этой подсказки отключены: не показываем её.
+    items.filter((it) => it && it[0] !== '').forEach(([keys, text]) => {
       el.append(h('span.hint' + (keys ? '' : '.tip'), null, keys ? h('kbd', null, keys) : null, text));
     });
     el.hidden = !el.children.length;
@@ -587,355 +769,12 @@
       }, (v) => v + ' ц').el);
   }
 
-  /* ---------- Разучивание мелодий ---------- */
-
-  const learn = {
-    song: null,
-    step: 0, // сколько нот уже сыграно правильно
-    shift: 0, // на сколько полутонов мелодия сдвинута под инструмент
-    misses: 0,
-    done: false,
-    lost: false, // мелодия перестала помещаться (сменили октаву или ширину)
-    busy: false, // раскладка двигается по нашей просьбе — не пересчитывать
-    demo: null,
-    doneEl: null,
-    tip: null,
-    tipTimer: null,
-  };
-
-  const TAP = {
-    keys: 'Нажмите мигающую клавишу',
-    bars: 'Ударьте по мигающей пластине',
-    kalimba: 'Нажмите мигающий язычок',
-    harp: 'Заденьте мигающую струну',
-    circle: 'Ударьте по мигающему полю',
-    strings: 'Прижмите мигающий лад',
-    bowed: 'Нажмите мигающее место на грифе',
-  };
-
-  const canLearn = () => !!(current && current.layout && current.layout.highlightNext);
-  const noteName = (m) => N.name(m, settings.labels === 'latin' ? 'latin' : 'ru');
-  const target = () => learn.song.notes[learn.step][0] + learn.shift;
+  /* ---------- Разучивание мелодий — в learn.js, свои мелодии — в mysongs.js ---------- */
 
   function plural(n, one, few, many) {
     const a = n % 10;
     const b = n % 100;
     return n + ' ' + (a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many);
-  }
-
-  /**
-   * Куда сдвинуть мелодию (в полутонах), чтобы все её ноты были на инструменте.
-   * Из подходящих сдвигов берём самый простой: меньше чёрных клавиш, та же тональность,
-   * раскладку не двигать, ближе к исходной высоте.
-   * move: можно ли попросить раскладку показать другую октаву → { shift, from }.
-   * sameKey: только сдвиги на целые октавы от around.
-   */
-  function planSong(song, opts) {
-    const L = current.layout;
-    const melody = song.notes.map((n) => n[0]);
-    const lo = Math.min(...melody);
-    const around = (opts && opts.around) || 0;
-    const move = !!(opts && opts.move && L.playableFrom && L.moveTo);
-    const now = new Set(L.playable());
-    const fits = (have, t) => melody.every((m) => have.has(m + t));
-    const less = (a, b) => {
-      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
-      return false;
-    };
-    let best = null;
-    for (let t = around - 48; t <= around + 48; t++) {
-      if (opts && opts.sameKey && (t - around) % 12) continue;
-      const here = fits(now, t);
-      if (!here && !(move && fits(new Set(L.playableFrom(lo + t)), t))) continue;
-      const black = new Set(melody.filter((m) => N.isBlack(m + t)).map((m) => N.pc(m + t))).size;
-      const score = [black, (t - around) % 12 ? 1 : 0, here ? 0 : 1, Math.abs(t - around)];
-      if (!best || less(score, best.score)) best = { score, shift: t, from: here ? null : lo + t };
-    }
-    return best && { shift: best.shift, from: best.from };
-  }
-
-  function whyNot(song) {
-    const L = current.layout;
-    const have = new Set(L.playable().map(N.pc));
-    const missing = [...new Set(song.notes.map((n) => N.pc(n[0])))].filter((p) => !have.has(p));
-    if (missing.length) return 'Здесь нет ноты ' + missing.map((p) => noteName(60 + p)).join(', ');
-    return L.playableFrom ? 'Не помещается на экране — поверните телефон боком' : 'На этом инструменте не хватает нот';
-  }
-
-  function openSongs() {
-    if (!canLearn()) return;
-    let dlg = null;
-    const list = h('div.songs');
-    let playable = 0;
-    App.songs.forEach((song) => {
-      const ok = !!planSong(song, { move: true });
-      if (ok) playable++;
-      const b = h('button.song-item' + (learn.song === song ? '.current' : ''), { type: 'button', disabled: !ok },
-        h('span.song-dots', { 'aria-hidden': 'true' }, song.notes.slice(0, 5).map(([m]) => h('i', { style: { '--c': N.color(m) } }))),
-        h('span.song-text', null,
-          h('b', null, song.title),
-          h('small', null, ok ? song.about + ' · ' + plural(song.notes.length, 'нота', 'ноты', 'нот') : whyNot(song))));
-      b.addEventListener('click', () => {
-        dlg.close();
-        startSong(song);
-      });
-      list.append(b);
-    });
-    dlg = sheet('Разучить мелодию', h('div', null,
-      h('p.note', null, playable
-        ? 'Выберите песню. Нужная нота будет мигать на инструменте — нажмите её, и мелодия пойдёт дальше. Ошиблись — не страшно: мелодия подождёт.'
-        : 'У этого инструмента особый набор нот, и эти песни на нём не сыграть. Попробуйте пианино, ксилофон или калимбу.'),
-      list));
-  }
-
-  function startSong(song) {
-    if (!canLearn()) return;
-    stopDemo();
-    hideDone();
-    const p = planSong(song, { move: true });
-    if (!p) {
-      toast(whyNot(song));
-      return;
-    }
-    if (p.from != null) {
-      learn.busy = true;
-      current.layout.moveTo(p.from);
-      learn.busy = false;
-    }
-    Object.assign(learn, { song, step: 0, shift: p.shift, misses: 0, done: false, lost: false });
-    setTip(null);
-    renderLearn();
-    highlight();
-  }
-
-  function stopSong() {
-    stopDemo();
-    hideDone();
-    setTip(null);
-    learn.song = null;
-    if (canLearn()) current.layout.highlightNext(null);
-    renderLearn();
-  }
-
-  /** После смены вида инструмента: мелодия переезжает на новую раскладку. */
-  function learnAttach() {
-    if (!learn.song) return;
-    if (!canLearn()) {
-      stopSong();
-      return;
-    }
-    const p = planSong(learn.song, { move: true, around: learn.shift });
-    if (!p) {
-      toast('«' + learn.song.title + '» не помещается на этот вид инструмента');
-      stopSong();
-      return;
-    }
-    if (p.from != null) {
-      learn.busy = true;
-      current.layout.moveTo(p.from);
-      learn.busy = false;
-    }
-    learn.shift = p.shift;
-    learn.lost = false;
-    renderLearn();
-    highlight();
-  }
-
-  function learnViewChanged() {
-    if (!learn.song || learn.busy || !canLearn()) return;
-    // Посреди песни тональность не меняем — только октаву, иначе знакомые ноты вдруг станут другими.
-    const p = planSong(learn.song, { around: learn.shift, sameKey: true });
-    if (!p || p.shift !== learn.shift) stopDemo();
-    learn.lost = !p;
-    if (p) learn.shift = p.shift;
-    renderLearn();
-    highlight();
-  }
-
-  function highlight() {
-    if (!canLearn() || learn.demo) return;
-    const on = learn.song && !learn.done && !learn.lost;
-    current.layout.highlightNext(on ? target() : null);
-  }
-
-  function learnHeard(midi) {
-    if (!learn.song || learn.done || learn.lost || learn.demo) return;
-    if (Math.round(midi) !== target()) {
-      learn.misses++;
-      setTip('Мимо — нужна нота ' + noteName(target()), 1800);
-      const now = current.learnUi.notes.querySelector('.now');
-      if (now) {
-        now.classList.remove('miss');
-        void now.offsetWidth;
-        now.classList.add('miss');
-      }
-      return;
-    }
-    learn.step++;
-    if (learn.step >= learn.song.notes.length) {
-      finishSong();
-      return;
-    }
-    setTip(null);
-    renderLearn();
-    highlight();
-  }
-
-  function finishSong() {
-    learn.done = true;
-    setTip(null);
-    current.layout.highlightNext(null);
-    renderLearn();
-    showDone();
-  }
-
-  function showDone() {
-    hideDone();
-    const word = 'Получилось!';
-    const scale = [60, 62, 64, 65, 67, 69, 71, 72];
-    const again = h('button.btn.primary', { type: 'button', onClick: () => startSong(learn.song) }, App.icon('restart'), 'Ещё раз');
-    const other = h('button.btn', { type: 'button', onClick: openSongs }, App.icon('note'), 'Другая мелодия');
-    const free = h('button.btn.ghost', { type: 'button', onClick: stopSong }, 'Просто поиграть');
-    learn.doneEl = h('div.learn-done', { role: 'status' },
-      h('div.learn-card', null,
-        h('h2', { 'aria-label': word }, [...word].map((ch, i) => h('span', { style: { '--c': N.color(scale[i % scale.length]) }, 'aria-hidden': 'true' }, ch))),
-        h('p', null, 'Вы сыграли «' + learn.song.title + '» от начала до конца' + (learn.misses ? '.' : ' — и ни разу не ошиблись!')),
-        h('div.row', null, again, other, free)));
-    current.stage.append(learn.doneEl);
-  }
-
-  function hideDone() {
-    if (learn.doneEl) learn.doneEl.remove();
-    learn.doneEl = null;
-  }
-
-  /* «Послушать, как звучит»: инструмент сам играет мелодию и показывает, куда нажимать. */
-
-  function toggleDemo() {
-    if (learn.demo) {
-      stopDemo();
-      return;
-    }
-    if (!learn.song || !canLearn()) return;
-    hideDone();
-    const song = learn.song;
-    const beat = 60 / song.bpm;
-    const demo = (learn.demo = { timers: [], voice: null, i: 0 });
-    App.audio.ensure();
-    let at = 0.12;
-    song.notes.forEach(([m, beats], i) => {
-      const midi = m + learn.shift;
-      demo.timers.push(setTimeout(() => {
-        demoRelease(demo);
-        demo.voice = sound(midi, 0.8);
-        demo.i = i;
-        current.layout.highlightNext(midi);
-        renderLearn();
-      }, at * 1000));
-      at += beats * beat;
-    });
-    demo.timers.push(setTimeout(stopDemo, at * 1000));
-    renderLearn();
-  }
-
-  function demoRelease(demo) {
-    if (demo.voice && current && current.inst.mode === 'sustain') release(demo.voice);
-    demo.voice = null;
-  }
-
-  function stopDemo() {
-    const demo = learn.demo;
-    if (!demo) return;
-    demo.timers.forEach(clearTimeout);
-    demoRelease(demo);
-    learn.demo = null;
-    renderLearn();
-    highlight();
-  }
-
-  /* Панель под инструментом: песня, ближайшие ноты, прогресс и кнопки. */
-
-  function buildLearnBar(el) {
-    const song = h('button.learn-song', { type: 'button', title: 'Выбрать другую мелодию', onClick: openSongs },
-      App.icon('note'), h('span'), App.icon('chevron-down'));
-    const notes = h('div.learn-notes', { 'aria-hidden': 'true' });
-    const fill = h('i');
-    const track = h('div.learn-track', { role: 'progressbar', 'aria-label': 'Сколько нот сыграно', 'aria-valuemin': 0 }, fill);
-    const count = h('span.learn-count');
-    const listen = h('button.btn', { type: 'button', 'aria-pressed': 'false', onClick: toggleDemo });
-    const restart = h('button.btn.learn-restart', { type: 'button', title: 'Начать мелодию сначала', 'aria-label': 'Сначала', onClick: () => learn.song && startSong(learn.song) },
-      App.icon('restart'), h('span.btn-label', null, 'Сначала'));
-    const quit = iconButton('close', 'Закончить разучивание', stopSong);
-    const tip = h('p.learn-tip', { 'aria-live': 'polite' });
-    el.append(song, notes, h('div.learn-progress', null, track, count), h('div.learn-actions', null, listen, restart, quit), tip);
-    return { el, song, notes, fill, track, count, listen, tip };
-  }
-
-  function setTip(text, ms) {
-    clearTimeout(learn.tipTimer);
-    learn.tip = text;
-    if (text && ms) {
-      learn.tipTimer = setTimeout(() => {
-        learn.tip = null;
-        renderLearn();
-      }, ms);
-    }
-    renderLearn();
-  }
-
-  function renderLearn() {
-    if (!current) return;
-    const ui = current.learnUi;
-    const song = learn.song;
-    ui.el.hidden = !song;
-    if (!song) return;
-
-    ui.song.querySelector('span').textContent = song.title;
-
-    ui.notes.textContent = '';
-    if (!learn.done || learn.demo) {
-      const from = learn.demo ? learn.demo.i : learn.step;
-      song.notes.slice(from, from + 4).forEach(([m], k) => {
-        const midi = m + learn.shift;
-        ui.notes.append(h('span.learn-note' + (k ? '.soon' : '.now'), { style: { '--c': N.color(midi) } }, noteName(midi)));
-      });
-      const now = ui.notes.firstChild;
-      if (now) now.addEventListener('animationend', (e) => e.animationName === 'learn-miss' && now.classList.remove('miss'));
-    }
-
-    const total = song.notes.length;
-    const played = learn.done ? total : learn.step;
-    ui.fill.style.setProperty('--p', (played / total) * 100 + '%');
-    ui.track.setAttribute('aria-valuemax', total);
-    ui.track.setAttribute('aria-valuenow', played);
-    ui.count.textContent = played + ' из ' + total;
-
-    const playing = !!learn.demo;
-    const label = playing ? 'Остановить' : 'Послушать, как звучит';
-    ui.listen.textContent = '';
-    ui.listen.append(App.icon(playing ? 'stop' : 'play'), h('span.btn-label', null, label));
-    ui.listen.setAttribute('aria-pressed', String(playing));
-    ui.listen.setAttribute('aria-label', label);
-    ui.listen.title = playing ? 'Остановить мелодию' : 'Инструмент сам сыграет мелодию и покажет, куда нажимать';
-
-    const kind = current.layoutName === 'strings' && current.inst.bowed ? 'bowed' : current.layoutName;
-    let tip = TAP[kind] || 'Нажмите мигающую ноту';
-    let warn = false;
-    if (learn.tip) {
-      tip = learn.tip;
-      warn = true;
-    } else if (learn.lost) {
-      tip = 'Мелодия не помещается на экране — поверните телефон боком или начните сначала';
-      warn = true;
-    } else if (playing) {
-      tip = 'Слушайте и смотрите, какие ноты мигают. Потом повторите сами';
-    } else if (learn.done) {
-      tip = 'Мелодия сыграна целиком';
-    } else if (learn.step === 0) {
-      tip += '. Не знаете, как звучит мелодия? Нажмите «Послушать»';
-    }
-    ui.tip.textContent = tip;
-    ui.tip.classList.toggle('warn', warn);
   }
 
   /* ---------- Верхняя панель ---------- */
@@ -969,6 +808,9 @@
     const takesBtn = iconButton('tape', 'Мои записи', openRecordings, 'takes-btn');
     takesBtn.append(h('span.badge', { hidden: true }));
 
+    const together = iconButton('users', 'Играть вместе', () => App.online.open(), 'net-btn');
+    together.append(h('span.badge', { hidden: true }));
+
     const el = h('header.topbar', null,
       back, title,
       h('div.bar-gap'),
@@ -977,6 +819,8 @@
       metro,
       rec,
       takesBtn,
+      together,
+      iconButton('plug', 'Настоящий инструмент: MIDI или микрофон', () => App.live.open(), 'live-btn wide-only'),
       iconButton('help', 'Как играть', openHelp, 'wide-only'),
       iconButton('fullscreen', 'Во весь экран', toggleFullscreen, 'wide-only'),
       iconButton('settings', 'Настройки', () => openSettings()));
@@ -1316,22 +1160,20 @@
       hints.length ? h('h3', null, 'Клавиатура компьютера') : null,
       hints.length ? h('div.help-keys', null, hints) : null,
       hints.length ? h('p.note', null, 'Клавиши работают в любой раскладке — и в русской, и в английской.') : null,
-      canLearn() ? h('h3', null, 'Разучить мелодию') : null,
-      canLearn() ? h('p', null, 'Нажмите «Разучить мелодию» и выберите песню. Нужная нота будет мигать — нажимайте её, и мелодия пойдёт дальше. Кнопка «Послушать, как звучит» сыграет песню целиком.') : null,
-      h('h3', null, 'MIDI-клавиатура'),
-      h('p', null, 'Подключите MIDI-клавиатуру к компьютеру и включите её в настройках — играть можно на любом инструменте.')));
+      current.layout.keyActions ? h('button.btn', { type: 'button', onClick: () => App.keybind.open() }, App.icon('keyboard'), 'Назначить свои клавиши') : null,
+      App.learn.can() ? h('h3', null, 'Разучить мелодию') : null,
+      App.learn.can() ? h('p', null, 'Нажмите «Разучить мелодию» и выберите песню. Нужная нота будет мигать — нажимайте её, и мелодия пойдёт дальше. Кнопка «Послушать, как звучит» сыграет песню, «Темп» замедлит её, а «Повтор куска» поможет выучить трудное место. Можно добавить свою мелодию из интернета (MIDI, ноты MusicXML, запись голоса) и играть на настоящем инструменте через микрофон.') : null,
+      h('h3', null, 'Настоящие инструменты'),
+      h('p', null, 'MIDI-клавиатура, электронные барабаны или MIDI-гитара подключаются по USB. Обычную гитару, скрипку, флейту или голос сайт слышит через микрофон.'),
+      h('button.btn', { type: 'button', onClick: () => App.live.open() }, App.icon('plug'), 'Подключить инструмент'),
+      h('h3', null, 'Играть вместе'),
+      h('p', null, 'Придумайте ник — друг подключится к вам по нему, и вы услышите друг друга. Регистрация не нужна.'),
+      h('button.btn', { type: 'button', onClick: () => App.online.open() }, App.icon('users'), 'Играть вместе')));
   }
 
   /* ---------- Настройки ---------- */
 
-  let midiAccess = null;
-  let midiStatus = 'Не подключена';
-
   function openSettings() {
-    const status = h('p.note', null, midiStatus);
-    const midiBtn = h('button.btn', { type: 'button' }, App.icon('midi'), 'Подключить MIDI');
-    midiBtn.addEventListener('click', () => connectMidi(status));
-
     const refresh = () => {
       if (current && current.layout) current.layout.refresh();
     };
@@ -1372,7 +1214,15 @@
           save();
           applyTheme();
         }, 'Оформление').el),
-      h('div.field-row', null, h('span.field-label', null, 'MIDI-клавиатура'), midiBtn, status),
+      h('div.field-row', null, h('span.field-label', null, 'Настоящие инструменты'),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.live.open(); } }, App.icon('plug'), 'MIDI и микрофон'),
+        h('p.note', null, App.live.summary())),
+      h('div.field-row', null, h('span.field-label', null, 'Играть вместе'),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.online.open(); } }, App.icon('users'), 'По нику, без регистрации'),
+        h('p.note', null, App.online.summary())),
+      current && current.layout && current.layout.keyActions ? h('div.field-row', null, h('span.field-label', null, 'Клавиши'),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.keybind.open(); } }, App.icon('keyboard'), 'Назначить свои клавиши'),
+        h('p.note', null, 'Для инструментов с раскладкой «' + App.layoutNames[current.layoutName] + '». Можно назначить и пэды MIDI-барабанов.')) : null,
       current ? h('div.field-row.narrow-only', null,
         h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openRecordings(); } }, App.icon('tape'), 'Мои записи'),
         h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openHelp(); } }, App.icon('help'), 'Как играть'),
@@ -1395,52 +1245,20 @@
     document.querySelectorAll('dialog[open]').forEach((d) => d.close());
   }
 
-  /* ---------- MIDI ---------- */
+  /* ---------- Кнопки «Играть вместе» ---------- */
 
-  function connectMidi(statusEl) {
-    const set = (t) => {
-      midiStatus = t;
-      if (statusEl) statusEl.textContent = t;
-    };
-    if (!navigator.requestMIDIAccess) {
-      set('Этот браузер не поддерживает MIDI. Подойдут Chrome, Edge или Opera.');
-      return;
-    }
-    navigator.requestMIDIAccess().then((access) => {
-      midiAccess = access;
-      const bind = () => {
-        const names = [];
-        access.inputs.forEach((input) => {
-          input.onmidimessage = onMidi;
-          names.push(input.name);
-        });
-        set(names.length ? 'Подключено: ' + names.join(', ') : 'Разрешение есть, но клавиатура не найдена. Подключите её — она появится сама.');
-      };
-      access.onstatechange = bind;
-      bind();
-    }).catch(() => set('Браузер не дал доступ к MIDI. Разрешите его в настройках сайта.'));
-  }
-
-  function onMidi(e) {
-    if (!current || !current.layout) return;
-    const [st, d1, d2] = e.data;
-    const cmd = st & 0xf0;
-    App.audio.ensure();
-    const L = current.layout;
-    if (cmd === 0x90 && d2 > 0) {
-      if (L.external) L.external(d1, true, Math.max(0.15, d2 / 127));
-    } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
-      if (L.external) L.external(d1, false, 0);
-    } else if (cmd === 0xb0 && d1 === 64) {
-      setSustain(d2 >= 64);
-      if (L.setSustain) L.setSustain(d2 >= 64);
-    }
-  }
-
-  if (navigator.permissions && navigator.requestMIDIAccess) {
-    navigator.permissions.query({ name: 'midi' }).then((p) => {
-      if (p.state === 'granted') connectMidi();
-    }).catch(() => {});
+  function updateNetButtons() {
+    const s = App.online.status();
+    document.querySelectorAll('.net-btn, .net-home').forEach((b) => {
+      b.dataset.net = s.state;
+      const badge = b.querySelector('.badge');
+      badge.hidden = !s.count;
+      badge.textContent = s.count;
+      const label = s.state === 'online' ? 'В сети как «' + s.nick + '»' + (s.count ? ' · вместе с вами: ' + s.count : '') : 'Играть вместе';
+      b.title = label;
+      b.setAttribute('aria-label', label);
+    });
+    if (current && current.band) App.online.renderBand(current.band);
   }
 
   /* ---------- Полный экран ---------- */
@@ -1484,7 +1302,9 @@
       return;
     }
     App.audio.ensure();
-    if (current.layout && current.layout.keydown(e.code, e)) {
+    // Своя клавиша работает так же, как клавиша по умолчанию, которую она заменяет.
+    const code = App.keymap.virtual(e.code);
+    if (code && current.layout && current.layout.keydown(code, e)) {
       e.preventDefault();
       const a = document.activeElement;
       if (a && a !== document.body && (a.tagName === 'BUTTON' || a.tagName === 'A' || a.type === 'range')) a.blur();
@@ -1496,7 +1316,8 @@
       if (heroKeys) heroKeys.up(e.code);
       return;
     }
-    if (current.layout && current.layout.keyup(e.code, e)) e.preventDefault();
+    const code = App.keymap.virtual(e.code);
+    if (code && current.layout && current.layout.keyup(code, e)) e.preventDefault();
     else if (e.code === 'Space' && !typing(e.target) && !modalOpen()) e.preventDefault();
   });
 
@@ -1509,6 +1330,42 @@
   const unlock = () => App.audio.ensure();
   document.addEventListener('pointerdown', unlock, true);
   document.addEventListener('keydown', unlock, true);
+
+  /* ---------- Связь с модулями: свои клавиши, настоящие инструменты, игра вместе ---------- */
+
+  App.shell = {
+    settings,
+    save,
+    toast,
+    sheet,
+    iconButton,
+    closeDialogs,
+    plural,
+    coarse,
+    current: () => current,
+    scheme: () => (current ? schemeOf(current) : null),
+    isDrums: () => !!current && ['kit', 'pads', 'beat'].includes(current.layoutName),
+    /** Раскладку нужно перестроить: сменились свои клавиши. */
+    remount() {
+      if (current) mountLayout();
+    },
+    external,
+    keyAction,
+    drumGM,
+    pedal,
+    releaseHeld,
+    remote,
+    band,
+    /** Нота текущим инструментом — для «Послушать, как звучит» (не засчитывается и не уходит друзьям). */
+    sound: (midi, vel) => sound(midi, vel),
+    release,
+    netChanged: updateNetButtons,
+  };
+  App.keybind.init(App.shell);
+  App.learn.init(App.shell);
+  App.mySongs.init(App.shell);
+  App.live.init(App.shell);
+  App.online.init(App.shell);
 
   route();
 })();

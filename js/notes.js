@@ -51,10 +51,38 @@
 
   const LABEL = {
     Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[',
-    BracketRight: ']', Equal: '=', Minus: '-', Backquote: '`', Space: 'Пробел',
+    BracketRight: ']', Equal: '=', Minus: '-', Backquote: '`', Backslash: '\\', IntlBackslash: '\\', Space: 'Пробел',
+    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'Shift', ShiftRight: 'Shift справа',
+    Enter: 'Enter', NumpadEnter: 'Num Enter', Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert',
+    Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', CapsLock: 'Caps',
+    NumpadAdd: 'Num +', NumpadSubtract: 'Num −', NumpadMultiply: 'Num *', NumpadDivide: 'Num /', NumpadDecimal: 'Num ,',
   };
-  const keyLabel = (code) =>
-    LABEL[code] || code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, '');
+  /** Название клавиши или MIDI-ноты («Midi36») — как её подписать человеку. */
+  const keyName = (code) => {
+    if (!code) return '';
+    if (LABEL[code]) return LABEL[code];
+    const midi = /^Midi(\d+)$/.exec(code);
+    if (midi) return 'MIDI ' + midi[1];
+    if (/^Numpad\d$/.test(code)) return 'Num ' + code.slice(6);
+    return code.replace(/^Key/, '').replace(/^Digit/, '');
+  };
+
+  /*
+   * Свои клавиши. Раскладки работают с «клавишами по умолчанию» (KeyZ — До и т. д.),
+   * а человек может сказать: «пусть До играет клавиша A». Для каждой раскладки хранится
+   * таблица «настоящая клавиша → клавиша по умолчанию» (null — клавиша ничего не делает).
+   */
+  let remap = {};
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const virtual = (code) => (own(remap, code) ? remap[code] : code);
+  /** Какие настоящие клавиши сейчас делают то же, что клавиша по умолчанию code. */
+  const physical = (code) => {
+    const list = Object.keys(remap).filter((k) => remap[k] === code);
+    if (!own(remap, code)) list.unshift(code);
+    return list;
+  };
+  // На инструменте подписываем клавишу компьютера; назначенный MIDI-пэд не подписываем.
+  const keyLabel = (code) => keyName(physical(code).find((p) => !/^Midi\d+$/.test(p)));
 
   // «Трекерная» хроматическая раскладка: нижний ряд — первая октава, верхний — вторая и дальше.
   const CHROMATIC_LOW = ['KeyZ', 'KeyS', 'KeyX', 'KeyD', 'KeyC', 'KeyV', 'KeyG', 'KeyB', 'KeyH', 'KeyN', 'KeyJ', 'KeyM',
@@ -65,9 +93,12 @@
   const chromatic = {};
   CHROMATIC_LOW.forEach((c, i) => (chromatic[c] = i));
   CHROMATIC_HIGH.forEach((c, i) => (chromatic[c] = 12 + i));
-  const chromaticLabel = {};
-  CHROMATIC_HIGH.forEach((c, i) => (chromaticLabel[12 + i] = keyLabel(c)));
-  CHROMATIC_LOW.slice(0, 12).forEach((c, i) => (chromaticLabel[i] = keyLabel(c)));
+  // Подпись на клавише: для первой октавы — нижний ряд, выше — верхний (а если там пусто — другой ряд).
+  const chromaticLabel = (offset) => {
+    const main = offset < 12 ? CHROMATIC_LOW[offset] : CHROMATIC_HIGH[offset - 12];
+    const spare = offset < 12 ? null : CHROMATIC_LOW[offset];
+    return keyLabel(main) || keyLabel(spare);
+  };
 
   // Диатоническая раскладка (арфа, калимба, гусли): каждый ряд начинается со своей «До».
   const ROWS = [
@@ -88,13 +119,60 @@
   const SEQUENCE = ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyZ', 'KeyX', 'KeyC', 'KeyV',
     'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyB', 'KeyN', 'KeyM', 'Comma'];
 
+  /** Подсказка «от … до» для ряда клавиш: пропускает клавиши, которые отключены. */
+  const span = (codes) => {
+    const labels = codes.map(keyLabel).filter(Boolean);
+    if (labels.length <= 2) return labels.join(' ');
+    return labels[0] + ' … ' + labels[labels.length - 1];
+  };
+
+  /** Список действий для настройки клавиш: ноты хроматической раскладки от base. */
+  function chromaticActions(base, name, only) {
+    const item = (code, off) => ({ code, label: name(base + off), color: App.notes.color(base + off) });
+    const ok = (off) => !only || only(base + off);
+    return [
+      { title: 'Нижний ряд', items: CHROMATIC_LOW.map((c, i) => ok(i) && item(c, i)).filter(Boolean) },
+      { title: 'Верхний ряд', items: CHROMATIC_HIGH.map((c, i) => ok(12 + i) && item(c, 12 + i)).filter(Boolean) },
+    ].filter((g) => g.items.length);
+  }
+
+  /** То же для «ступенчатой» раскладки (арфа, калимба): midiOf(ступень) → нота. */
+  function diatonicActions(midiOf, count, name) {
+    const titles = ['Нижний ряд (Z X C …)', 'Средний ряд (A S D …)', 'Верхний ряд (Q W E …)', 'Цифры'];
+    return ROWS.map((row, r) => ({
+      title: titles[r],
+      items: row.map((code, i) => {
+        const d = r * 7 + i;
+        if (d >= count) return null;
+        const m = midiOf(d);
+        return { code, label: name(m), color: App.notes.color(m) };
+      }).filter(Boolean),
+    })).filter((g) => g.items.length);
+  }
+
   App.keymap = {
+    /** Подпись клавиши, которая сейчас делает то же, что клавиша по умолчанию code. */
     label: keyLabel,
+    /** Название самой клавиши, без учёта замен. */
+    keyName,
+    span,
     chromatic, // code → смещение в полутонах от начальной «До»
-    chromaticLabel: (offset) => chromaticLabel[offset] || '',
+    chromaticLabel,
+    chromaticLow: CHROMATIC_LOW,
+    chromaticHigh: CHROMATIC_HIGH,
+    chromaticActions,
     diatonic, // code → номер ступени
     diatonicLabel,
+    diatonicRows: ROWS,
+    diatonicActions,
     sequence: SEQUENCE,
+    /** Включить замены клавиш для раскладки: map — {настоящая клавиша: клавиша по умолчанию | null}. */
+    use(map) {
+      remap = map || {};
+    },
+    /** Настоящая клавиша → клавиша по умолчанию (null — клавиша отключена). */
+    virtual,
+    physical,
   };
 
   /* ---------- Гаммы ---------- */

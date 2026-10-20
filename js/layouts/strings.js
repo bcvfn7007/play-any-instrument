@@ -229,27 +229,43 @@
     }
 
     const keys = App.keyHolder(
-      (code) => {
+      (code, e) => {
         if (chords.length && code.startsWith('Digit')) return undefined;
         const off = App.keymap.chromatic[code];
         if (off == null) return undefined;
         const pos = position(kbBase + off);
         if (!pos) return null;
         cells[pos.s][pos.f].classList.add('on');
-        return play(pos.s, pos.f, 0.85, 0);
+        return play(pos.s, pos.f, App.keyVel(e, 0.85), 0);
       },
       (pr) => release(pr)
     );
 
     const external = new Map();
 
+    const K = App.keymap;
+    const space = K.label('Space');
     ctx.setHints([
-      chords.length ? ['1 … ' + App.keymap.label(CHORD_KEYS[Math.min(chords.length, CHORD_KEYS.length) - 1]), 'аккорды'] : null,
-      chords.length ? ['Пробел', 'бой вниз'] : null,
-      chords.length ? ['Shift + Пробел', 'бой вверх'] : null,
-      ['Z … M, Q … P', 'отдельные ноты'],
-      ['← →', 'октава клавиатуры'],
+      chords.length ? [K.span(CHORD_KEYS.slice(0, chords.length)), 'аккорды'] : null,
+      chords.length && space ? [space, 'бой вниз'] : null,
+      chords.length && space ? ['Shift + ' + space, 'бой вверх'] : null,
+      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), 'отдельные ноты'],
+      [K.span(['ArrowLeft', 'ArrowRight']), 'октава клавиатуры'],
     ]);
+
+    function keyActions() {
+      const groups = [];
+      if (chords.length) {
+        groups.push({ title: 'Аккорды', items: chords.slice(0, CHORD_KEYS.length).map((c, i) => ({ code: CHORD_KEYS[i], label: 'Аккорд ' + c.name })) });
+      }
+      if (!bowed) groups.push({ title: 'Бой', items: [{ code: 'Space', label: 'Бой по струнам (с Shift — вверх)' }] });
+      K.chromaticActions(kbBase, ctx.noteName, (m) => !!position(m)).forEach((g) => {
+        const items = chords.length ? g.items.filter((it) => !it.code.startsWith('Digit')) : g.items;
+        if (items.length) groups.push({ title: 'Ноты: ' + g.title.toLowerCase(), items });
+      });
+      groups.push({ title: 'Управление', items: [{ code: 'ArrowLeft', label: 'Клавиатура на октаву ниже' }, { code: 'ArrowRight', label: 'Клавиатура на октаву выше' }] });
+      return groups;
+    }
 
     build();
     const ro = new ResizeObserver(() => {
@@ -275,18 +291,15 @@
           if (i >= 0 && chords[i]) {
             if (e.repeat) return true;
             selectChord(chords[i]);
-            strumChord(e.shiftKey);
+            strumChord(e.shiftKey, App.keyVel(e, 0.85));
             return true;
           }
-          if (code === 'Space') {
-            if (!e.repeat) strumChord(e.shiftKey);
-            return true;
-          }
-        } else if (code === 'Space') {
-          if (!e.repeat) strumChord(e.shiftKey);
+        }
+        if (code === 'Space') {
+          if (!e.repeat) strumChord(e.shiftKey, App.keyVel(e, 0.85));
           return true;
         }
-        return keys.down(code);
+        return keys.down(code, e);
       },
       keyup: (code) => keys.up(code),
       external(midi, on, vel) {
@@ -305,6 +318,7 @@
         tracker.releaseAll();
       },
       refresh: build,
+      keyActions,
       highlightNext: (m) => nextMark.set(m),
       playable() {
         const all = new Set();

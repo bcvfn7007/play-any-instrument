@@ -72,10 +72,12 @@
     }
 
     function hintFor(p) {
-      const k = p.keys.map(App.keymap.label);
-      if (p.rimKeys) k.push(App.keymap.label(p.rimKeys[0]) + ' обод');
-      if (p.bellKeys) k.push(App.keymap.label(p.bellKeys[0]) + ' колокол');
-      if (p.openKeys) k.push(App.keymap.label(p.openKeys[0]) + ' откр.');
+      const K = App.keymap;
+      const k = p.keys.map(K.label).filter(Boolean);
+      const extra = (list, word) => list && K.label(list[0]) && k.push(K.label(list[0]) + ' ' + word);
+      extra(p.rimKeys, 'обод');
+      extra(p.bellKeys, 'колокол');
+      extra(p.openKeys, 'откр.');
       return k.join(', ');
     }
 
@@ -267,16 +269,29 @@
     }, 'Хай-хэт');
     ctx.deck.append(App.h('span.deck-label', null, 'Хай-хэт'), hat.el);
 
+    const K = App.keymap;
+    const keysOf = (list) => list.map(K.label).filter(Boolean).join(' ');
     ctx.setHints([
-      ['Пробел', 'бочка'],
-      ['D', 'малый'],
-      ['F', 'обод'],
-      ['A', 'хай-хэт'],
-      ['S', 'открытый хай-хэт'],
-      ['E R J', 'томы'],
-      ['Q W P', 'тарелки'],
+      [K.label('Space'), 'бочка'],
+      [K.label('KeyD'), 'малый'],
+      [K.label('KeyF'), 'обод'],
+      [K.label('KeyA'), 'хай-хэт'],
+      [K.label('KeyS'), 'открытый хай-хэт'],
+      [keysOf(['KeyE', 'KeyR', 'KeyJ']), 'томы'],
+      [keysOf(['KeyQ', 'KeyW', 'KeyP']), 'тарелки'],
       [null, 'бейте по краю малого — будет удар по ободу, в центр райда — колокол'],
     ]);
+
+    function keyActions() {
+      const ZONE = { rim: ' — обод', bell: ' — колокол', open: ' — открытый', closed: ' — закрытый' };
+      const items = Object.keys(codes).map((code) => {
+        const [id, zone] = codes[code];
+        return { code, label: NAMES[id] + (ZONE[zone] || ''), piece: id };
+      });
+      const order = ['kick', 'snare', 'hihat', 'hhpedal', 'tom1', 'tom2', 'floor', 'crash', 'splash', 'ride'];
+      items.sort((a, b) => order.indexOf(a.piece) - order.indexOf(b.piece));
+      return [{ title: 'Установка', items }];
+    }
 
     render();
     ctx.preloadDrums([...new Set(PIECES.flatMap((p) => [p.sound, p.rim, p.bell, p.open]).filter(Boolean))]);
@@ -292,7 +307,7 @@
       keydown(code, e) {
         const hit = codes[code];
         if (!hit) return false;
-        if (!e.repeat) strike(hit[0], 0.9, hit[1]);
+        if (!e.repeat) strike(hit[0], App.keyVel(e, 0.9), hit[1]);
         return true;
       },
       keyup: (code) => !!codes[code],
@@ -307,6 +322,7 @@
       },
       releaseAll() {},
       refresh: render,
+      keyActions,
       destroy() {},
     };
   };

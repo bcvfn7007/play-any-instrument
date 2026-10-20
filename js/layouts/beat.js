@@ -86,8 +86,9 @@
     const cells = [];
     const heads = [];
     ROWS.forEach(([sound, name, color], r) => {
+      const key = App.keymap.label('Digit' + (r + 1));
       const head = h('button.beat-head', { type: 'button', style: { '--c': color }, title: 'Послушать: ' + name },
-        h('span', null, name), ctx.showKeys() ? h('kbd', null, r + 1) : null);
+        h('span', null, name), ctx.showKeys() && key ? h('kbd', null, key) : null);
       head.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         App.audio.ensure();
@@ -189,10 +190,11 @@
       }
     }
 
+    const DIGITS = ROWS.map((_, r) => 'Digit' + (r + 1));
     ctx.preloadDrums(ROWS.map((r) => r[0]));
     ctx.setHints([
-      ['Пробел', 'играть / стоп'],
-      ['1 … 8', 'ударить по звуку вручную'],
+      [App.keymap.label('Space'), 'играть / стоп'],
+      [App.keymap.span(DIGITS), 'ударить по звуку вручную'],
       [null, 'нажмите клетку или проведите по ряду, чтобы поставить удары'],
     ]);
     paintAll();
@@ -207,13 +209,17 @@
         if (m) {
           if (!e.repeat) {
             const r = +m[1] - 1;
-            ctx.drum(ROWS[r][0], 0.9);
+            ctx.drum(ROWS[r][0], App.keyVel(e, 0.9));
             flash(heads[r]);
           }
           return true;
         }
         return false;
       },
+      keyActions: () => [
+        { title: 'Драм-машина', items: [{ code: 'Space', label: 'Играть / стоп' }] },
+        { title: 'Ударить вручную', items: ROWS.map(([, name, color], r) => ({ code: DIGITS[r], label: name, color })) },
+      ],
       keyup: () => false,
       external(midi, on, vel) {
         if (!on) return;

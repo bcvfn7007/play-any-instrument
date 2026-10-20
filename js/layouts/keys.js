@@ -46,11 +46,12 @@
       ctx.deck.append(pedal.el);
     }
 
+    const K = App.keymap;
     ctx.setHints([
-      ['Z … M', 'нижняя октава'],
-      ['Q … P', 'верхняя октава'],
-      ['← →', 'сменить октаву'],
-      inst.mode === 'sustain' ? ['Пробел', 'педаль'] : null,
+      [K.span(K.chromaticLow.slice(0, 12)), 'нижняя октава'],
+      [K.span(K.chromaticHigh.slice(0, 17)), 'верхняя октава'],
+      [K.span(['ArrowLeft', 'ArrowRight']), 'сменить октаву'],
+      inst.mode === 'sustain' ? [K.label('Space'), 'педаль'] : null,
     ]);
 
     function measure() {
@@ -151,10 +152,10 @@
     });
 
     const keys = App.keyHolder(
-      (code) => {
+      (code, e) => {
         const off = App.keymap.chromatic[code];
         if (off == null) return undefined;
-        return presser.press(start + off, 0.82);
+        return presser.press(start + off, App.keyVel(e, 0.82));
       },
       (pr) => presser.release(pr)
     );
@@ -164,7 +165,7 @@
     measure();
 
     return {
-      keydown(code) {
+      keydown(code, e) {
         if (code === 'ArrowLeft' || code === 'ArrowRight') {
           shift(code === 'ArrowLeft' ? -1 : 1);
           return true;
@@ -174,7 +175,7 @@
           pedal.set(true);
           return true;
         }
-        return keys.down(code);
+        return keys.down(code, e);
       },
       keyup(code) {
         if (code === 'Space' && pedal) {
@@ -191,6 +192,11 @@
         tracker.releaseAll();
       },
       refresh: render,
+      keyActions() {
+        const ctl = [{ code: 'ArrowLeft', label: 'Октава ниже' }, { code: 'ArrowRight', label: 'Октава выше' }];
+        if (pedal) ctl.push({ code: 'Space', label: 'Педаль (держать)' });
+        return App.keymap.chromaticActions(start, ctx.noteName).concat([{ title: 'Управление', items: ctl }]);
+      },
       highlightNext: (m) => nextMark.set(m),
       playable: () => notes.slice(),
       playableFrom: (lo) => notesFrom(clampAt(12 * Math.floor(lo / 12))),

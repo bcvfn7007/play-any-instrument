@@ -3066,6 +3066,1014 @@ dialog.sheet[open] {
   pointer-events: auto;
 }
 
+/* ===================== Кнопки «Вместе» и «Инструмент» ===================== */
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.net-home {
+  position: relative;
+}
+
+.net-home .badge {
+  top: -6px;
+  right: -6px;
+}
+
+.net-btn[data-net='online']::after,
+.net-home[data-net='online']::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.net-home[data-net='online']::after {
+  left: 8px;
+  bottom: 4px;
+}
+
+.net-btn[data-net='connecting']::after,
+.net-home[data-net='connecting']::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.live-btn {
+  width: auto;
+  min-width: 38px;
+  padding: 0 8px;
+  gap: 5px;
+  display: inline-flex;
+}
+
+.live-btn.active {
+  color: var(--live);
+}
+
+.live-btn.ping {
+  animation: tick 0.25s ease-out;
+}
+
+.live-note {
+  min-width: 30px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--c, var(--raised));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+/* ===================== Полоска «Вместе» на экране игры ===================== */
+
+.band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--live) 7%, var(--panel));
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-size: 13px;
+}
+
+.band-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  font-weight: 650;
+  flex: none;
+}
+
+.band-label .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--live);
+}
+
+.band-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 11px 3px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--stage);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  flex: none;
+}
+
+.band-chip .icon {
+  width: 15px;
+  height: 15px;
+  color: var(--live);
+}
+
+.band-inst {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.band-icon {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.band-chip.hit {
+  animation: band-hit 0.35s ease-out;
+}
+
+@keyframes band-hit {
+  0% {
+    border-color: var(--c);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.band-wait {
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .band-inst {
+    display: none;
+  }
+}
+
+/* ===================== Подсказки: «Свои клавиши» ===================== */
+
+.hint-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hint-edit:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.hint-edit .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===================== Окно «Свои клавиши» ===================== */
+
+.kb-list h3 {
+  margin: 20px 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--dim);
+}
+
+.kb-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.kb-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.kb-dot.plain {
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.kb-label {
+  font-weight: 550;
+}
+
+.kb-key {
+  min-width: 64px;
+  max-width: 200px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 3px;
+  border-radius: 8px;
+  background: var(--stage);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-key:hover {
+  border-color: var(--brass);
+}
+
+.kb-key.empty {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.kb-key.wait {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 16%, var(--stage));
+  color: var(--text);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.kb-foot {
+  margin-top: 20px;
+}
+
+/* ===================== Окно «Настоящие инструменты» ===================== */
+
+.live-sec {
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-sec + .live-sec {
+  padding-top: 16px;
+}
+
+.live-sec:last-child {
+  border-bottom: 0;
+}
+
+.live h3,
+.net h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font: 600 15px/1.3 var(--font-display);
+}
+
+.live h3 .icon {
+  color: var(--brass);
+}
+
+.live .row,
+.net-ask .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.live-select {
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+.live-status {
+  margin: 10px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.live-status[data-state='on'] {
+  color: var(--live);
+}
+
+.live-status[data-state='denied'],
+.live-status[data-state='error'],
+.live-status[data-state='unsupported'] {
+  color: var(--rec);
+}
+
+.live-devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.live-devices:empty {
+  display: none;
+}
+
+.live-last:empty {
+  display: none;
+}
+
+.live-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.live-field .segmented {
+  flex-wrap: wrap;
+}
+
+.live-field .slider {
+  width: 100%;
+}
+
+.live-field .slider > span {
+  width: 64px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.live-field .slider input[type='range'] {
+  flex: 1;
+}
+
+.live-field .slider output {
+  min-width: 112px;
+  text-align: right;
+}
+
+.tuner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 14px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--stage);
+}
+
+.tuner.off {
+  opacity: 0.55;
+}
+
+.tuner-note {
+  min-width: 96px;
+  font: 800 34px/1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--c, var(--dim));
+  text-align: center;
+}
+
+.tuner-side {
+  min-width: 0;
+}
+
+.tuner-scale {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rec) 30%, transparent), transparent 35%, color-mix(in srgb, var(--live) 35%, transparent) 50%, transparent 65%, color-mix(in srgb, var(--rec) 30%, transparent));
+}
+
+.tuner-mid {
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--live);
+}
+
+.tuner-needle {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--text);
+  transition: left 0.08s linear;
+}
+
+.tuner-cents {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--dim);
+}
+
+.tuner-cents[data-tune='ok'] {
+  color: var(--live);
+}
+
+.tuner-hz {
+  font-size: 12px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.tuner-meter {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--raised);
+  overflow: visible;
+}
+
+.tuner-meter i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: var(--live);
+  transition: width 0.05s linear;
+}
+
+.tuner-meter b {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+/* ===================== Окно «Играть вместе» ===================== */
+
+.net-intro {
+  margin-top: 0;
+}
+
+.net-sec {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.net-sec:last-of-type {
+  border-bottom: 0;
+}
+
+.net-line {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.net-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--stage);
+  font-size: 16px;
+}
+
+.net-input:disabled {
+  opacity: 0.7;
+}
+
+.net-url {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.net-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-weight: 600;
+}
+
+.net-status.bad {
+  color: var(--rec);
+}
+
+.net-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 25%, transparent);
+  flex: none;
+}
+
+.net-me[data-state='connecting'] .net-dot {
+  background: var(--brass);
+  box-shadow: none;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.net-msg {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.net-people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.net-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--stage);
+}
+
+.net-person .band-icon {
+  font-size: 22px;
+}
+
+.net-person-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.net-person-text small {
+  color: var(--dim);
+}
+
+.net-person .btn {
+  padding: 6px 10px;
+}
+
+.net-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.net .slider {
+  width: 100%;
+}
+
+.net .slider > span {
+  width: 140px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.net .slider input[type='range'] {
+  flex: 1;
+}
+
+.net .field-row {
+  display: flex;
+}
+
+.net-chat-list {
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--stage);
+}
+
+.net-chat-list .note {
+  margin: 0;
+}
+
+.net-chat-line {
+  margin: 0 0 4px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.net-chat-line b {
+  color: var(--brass);
+}
+
+.net-chat-line.mine b {
+  color: var(--live);
+}
+
+.net-chat .icon-btn {
+  border: 1px solid var(--line);
+}
+
+.net-small {
+  font-size: 12px;
+}
+
+/* Карточка «Пустить?» — поверх всего, даже открытых окон. */
+.net-ask {
+  position: fixed;
+  inset: auto;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  width: min(380px, calc(100vw - 24px));
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  animation: ask-in 0.25s ease-out;
+}
+
+.net-ask-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.net-ask-text .icon {
+  color: var(--live);
+  width: 24px;
+  height: 24px;
+}
+
+.net-ask .row {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+@keyframes ask-in {
+  from {
+    transform: translate(-50%, -12px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .net-home .btn-label {
+    display: none;
+  }
+  .net-home {
+    padding: 8px 10px;
+  }
+}
+
+/* ===================== Разучивание: темп, аккомпанемент, повтор ===================== */
+
+dialog.sheet.wide {
+  width: min(580px, 100vw);
+}
+
+.learn-opts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.learn-opts .chip {
+  padding: 5px 11px;
+  font-size: 13px;
+}
+
+.learn-speed {
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.learn-track {
+  position: relative;
+  height: 10px;
+  overflow: visible;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.learn-track .learn-fill {
+  position: relative;
+  z-index: 1;
+}
+
+.learn-track .learn-loop {
+  position: absolute;
+  height: auto;
+  transition: none;
+  top: -4px;
+  bottom: -4px;
+  z-index: 2;
+  border: 2px solid var(--live);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--live) 18%, transparent);
+  pointer-events: none;
+}
+
+.learn-track .learn-loop b {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 4px;
+  background: var(--live);
+}
+
+.learn-track .learn-loop b.a {
+  left: -6px;
+}
+
+.learn-track .learn-loop b.b {
+  right: -6px;
+}
+
+.learn-note.chord {
+  letter-spacing: -0.01em;
+}
+
+.learn-score {
+  font-weight: 650;
+  color: var(--text) !important;
+}
+
+@media (max-width: 1100px) {
+  .learn-opts .chip {
+    padding: 5px 9px;
+  }
+}
+
+@media (max-width: 760px) {
+  .learn-opts {
+    order: 5;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===================== Список песен ===================== */
+
+.learn-sheet h3 {
+  margin: 0;
+  font: 600 15px/1.3 var(--font-display);
+}
+
+.songs-sec {
+  padding: 14px 0 8px;
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+}
+
+.songs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.songs-sec > h3 {
+  margin-bottom: 4px;
+}
+
+.songs.mine .empty {
+  margin: 10px 0;
+}
+
+.song-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.song-row .song-item {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===================== Добавить мелодию ===================== */
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px 18px;
+  border: 2px dashed var(--line-strong);
+  border-radius: 16px;
+  background: var(--stage);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.drop:hover,
+.drop.over {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 8%, var(--stage));
+}
+
+.drop .icon {
+  width: 30px;
+  height: 30px;
+  color: var(--brass);
+}
+
+.drop b {
+  font-size: 16px;
+}
+
+.drop small {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.add-status {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.add-status.bad {
+  background: color-mix(in srgb, var(--rec) 14%, transparent);
+}
+
+.add-tips h3,
+.add-song h3,
+.pick-song h3 {
+  margin: 0 0 6px;
+  font: 600 15px/1.3 var(--font-display);
+}
+
+.add-tips {
+  margin-top: 16px;
+}
+
+.add-tips ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+.add-tips li {
+  margin-bottom: 4px;
+}
+
+.add-song .net-sec > .net-input {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.notes-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--stage);
+  color: var(--text);
+  font: 15px/1.5 var(--font-body);
+  resize: vertical;
+}
+
+.add-song .row,
+.pick-song .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ---------- Выбор партии ---------- */
+
+.time-line {
+  align-items: center;
+}
+
+.time-line > span {
+  color: var(--dim);
+  font-weight: 600;
+}
+
+.time-input {
+  flex: 0 1 110px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pick-song .segmented {
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.pick-song .net-sec > .net-input {
+  width: 100%;
+}
+
+.parts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.part {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--stage);
+  cursor: pointer;
+}
+
+.part.on {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, var(--stage));
+}
+
+.part.drums {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.part input {
+  accent-color: var(--brass);
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.part-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.part-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.part-text small {
+  color: var(--dim);
+}
+
+.part-play {
+  border: 1px solid var(--line);
+}
+
+.part-play.on {
+  background: var(--brass);
+  color: var(--on-brass);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

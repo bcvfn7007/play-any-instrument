@@ -103,10 +103,11 @@
     });
 
     const held = new Set();
+    const row = (r) => App.keymap.span(App.keymap.diatonicRows[r].slice(0, 7));
     ctx.setHints([
-      ['Z X C V …', 'нижние струны'],
-      ['A S D F …', 'средние'],
-      ['Q W E R …', 'верхние'],
+      [row(0), 'нижние струны'],
+      [row(1), 'средние'],
+      [row(2), 'верхние'],
       [null, 'проведите по струнам пальцем или мышью'],
     ]);
 
@@ -118,7 +119,7 @@
       keydown(code, e) {
         const d = App.keymap.diatonic[code];
         if (d == null) return false;
-        if (!e.repeat && !held.has(code)) pluck(d, 0.85);
+        if (!e.repeat && !held.has(code)) pluck(d, App.keyVel(e, 0.85));
         held.add(code);
         return true;
       },
@@ -136,6 +137,7 @@
       },
       releaseAll: () => held.clear(),
       refresh: render,
+      keyActions: () => App.keymap.diatonicActions((d) => midis[d], midis.length, ctx.noteName),
       highlightNext: (m) => nextMark.set(m),
       playable: () => midis.slice(),
       playableFrom: octave ? (lo) => midisFrom(rootFor(lo)) : null,
@@ -216,26 +218,38 @@
       down: (el) => presser.press(+el.dataset.midi, 0.85),
       up: (pr) => presser.release(pr),
     });
-    const keys = App.keyHolder((code) => {
+    const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
+    const keys = App.keyHolder((code, e) => {
+      const vel = App.keyVel(e, 0.85);
       if (steel) {
         const off = App.keymap.chromatic[code];
         const m = off == null ? null : 60 + off;
-        return m != null && elByMidi.has(m) ? presser.press(m, 0.85) : undefined;
+        return m != null && elByMidi.has(m) ? presser.press(m, vel) : undefined;
       }
       let i = HAND_KEYS.indexOf(code);
-      if (i < 0 && /^Digit[1-9]$/.test(code)) i = +code.slice(5) - 1;
-      return i >= 0 && sorted[i] ? presser.press(sorted[i].midi, 0.85) : undefined;
+      if (i < 0) i = DIGITS.indexOf(code);
+      return i >= 0 && sorted[i] ? presser.press(sorted[i].midi, vel) : undefined;
     }, (pr) => presser.release(pr));
 
+    const K = App.keymap;
     ctx.setHints(steel
-      ? [['Z … M', 'внешнее кольцо'], ['Q … P', 'внутреннее кольцо'], [null, 'ноты внешнего кольца идут по кругу квинт']]
-      : [['A S D F G H J K L', 'от низкой ноты к высокой'], ['1 … 9', 'то же самое'], [null, 'в центре — самая низкая нота, «динг»']]);
+      ? [[K.span(K.chromaticLow.slice(0, 12)), 'внешнее кольцо'], [K.span(K.chromaticHigh.slice(0, 12)), 'внутреннее кольцо'], [null, 'ноты внешнего кольца идут по кругу квинт']]
+      : [[HAND_KEYS.slice(0, sorted.length).map(K.label).filter(Boolean).join(' '), 'от низкой ноты к высокой'], [K.span(DIGITS.slice(0, sorted.length)), 'то же самое'], [null, 'в центре — самая низкая нота, «динг»']]);
+
+    function keyActions() {
+      if (steel) return K.chromaticActions(60, ctx.noteName, (m) => elByMidi.has(m));
+      const item = (code, i) => sorted[i] && { code, label: ctx.noteName(sorted[i].midi), color: App.notes.color(sorted[i].midi) };
+      return [
+        { title: 'Буквы', items: HAND_KEYS.map(item).filter(Boolean) },
+        { title: 'Цифры', items: DIGITS.map(item).filter(Boolean) },
+      ];
+    }
 
     render();
     ctx.preload(fields.map((f) => f.midi));
 
     return {
-      keydown: (code) => keys.down(code),
+      keydown: (code, e) => keys.down(code, e),
       keyup: (code) => keys.up(code),
       external: (midi, on, vel) => presser.external(midi, on, vel),
       releaseAll() {
@@ -243,6 +257,7 @@
         tracker.releaseAll();
       },
       refresh: render,
+      keyActions,
       highlightNext: (m) => nextMark.set(m),
       playable: () => fields.map((f) => f.midi),
       destroy() {

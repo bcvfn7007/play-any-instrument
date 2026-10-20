@@ -205,14 +205,14 @@
 
   /**
    * Подсветка «следующей ноты» в режиме разучивания: класс .next на элементе ноты.
-   * apply() — заново после перерисовки раскладки.
+   * set(midi) — одна нота, set([midi, …]) — аккорд, set(null) — погасить. apply() — заново после перерисовки.
    */
   App.nextMarker = function (elFor) {
     let midi = null;
     let marked = [];
     function apply() {
       marked.forEach((el) => el.classList.remove('next'));
-      marked = midi == null ? [] : [].concat(elFor(midi) || []);
+      marked = midi == null ? [] : [].concat(midi).flatMap((m) => [].concat(elFor(m) || [])).filter(Boolean);
       marked.forEach((el) => {
         void el.offsetWidth; // пульсация начинается заново, даже если нота повторяется
         el.classList.add('next');
@@ -227,13 +227,16 @@
     };
   };
 
+  /** Сила нажатия: у MIDI-пэда, назначенного на клавишу, она своя; у клавиатуры — d. */
+  App.keyVel = (e, d) => (e && e.velocity) || d;
+
   /** Обработка клавиш компьютера: code → нажатие; повторы автоповтора игнорируются. */
   App.keyHolder = function (pressFn, releaseFn) {
     const held = new Map();
     return {
-      down(code) {
+      down(code, e) {
         if (held.has(code)) return true;
-        const pr = pressFn(code);
+        const pr = pressFn(code, e);
         if (pr === undefined) return false;
         held.set(code, pr);
         return true;
@@ -327,6 +330,13 @@
     note: '<path d="M9 17.5V5.5l10-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/>',
     restart: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>',
     shuffle: '<path d="M4 7h3.5c4 0 5 10 9 10H20M4 17h3.5c1.6 0 2.7-1.6 3.6-3.5M16.5 7H20M13 9.5C13.9 8 14.9 7 16.5 7M18 4.5L20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5"/>',
+    users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5.2 5.5-5.2s4.9 1.9 5.5 5.2"/><circle cx="16.8" cy="9.3" r="2.5"/><path d="M15.6 14.4c2.6-.2 4.4 1.5 4.9 4.6"/>',
+    plug: '<path d="M9 3.5v4.5M15 3.5v4.5"/><path d="M6.5 8h11v3.5a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v3.5"/>',
+    mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+    keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 9.5h.01M9.3 9.5h.01M12.6 9.5h.01M15.9 9.5h.01M18 9.5h.01M6 12.5h.01M9.3 12.5h.01M12.6 12.5h.01M15.9 12.5h.01M18 12.5h.01M8 15.3h8"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    send: '<path d="M4 12l16-7.5-6 15-2.5-6.2z"/><path d="M11.5 13.3L20 4.5"/>',
+    signal: '<path d="M5 18.5a10 10 0 0 1 0-13M8.5 15a5 5 0 0 1 0-6M19 18.5a10 10 0 0 0 0-13M15.5 15a5 5 0 0 0 0-6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>',
   };
   function svg(name) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

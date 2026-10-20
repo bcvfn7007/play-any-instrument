@@ -132,9 +132,10 @@
     const ro = new ResizeObserver(() => render());
     ro.observe(field);
 
+    const K = App.keymap;
     ctx.setHints([
       [null, 'зажмите поле и ведите: влево-вправо — высота, вверх-вниз — громкость'],
-      ['Z … M, Q … P', 'ноты с плавным переходом'],
+      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), 'ноты с плавным переходом'],
     ]);
     render();
 
@@ -168,6 +169,7 @@
         touches.forEach((st, id) => end({ pointerId: id }));
       },
       refresh: render,
+      keyActions: () => K.chromaticActions(48, ctx.noteName),
       destroy() {
         ro.disconnect();
         this.releaseAll();

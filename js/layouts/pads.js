@@ -85,15 +85,28 @@
       up: () => {},
     });
 
-    ctx.setHints(LEFT.slice(firstRow).map((row, r) => [row.map(App.keymap.label).join(' '), 'ряд ' + (r + 1)])
-      .concat([bySound.has('kick') ? ['Пробел', 'бочка'] : null, [RIGHT[firstRow].map(App.keymap.label).join(' ') + ' …', 'вторая рука']]));
+    const K = App.keymap;
+    const keysOf = (row) => row.map(K.label).filter(Boolean).join(' ');
+    const right = keysOf(RIGHT[firstRow]);
+    ctx.setHints(LEFT.slice(firstRow).map((row, r) => [keysOf(row), 'ряд ' + (r + 1)])
+      .concat([bySound.has('kick') ? [K.label('Space'), 'бочка'] : null, right ? [right + ' …', 'вторая рука'] : null]));
     ctx.preloadDrums([...new Set(pads.map((p) => p.sound))]);
+
+    function keyActions() {
+      const side = (rows) => rows.slice(firstRow).flatMap((row, r) => row.map((code, c) => {
+        const p = pads[r * 4 + c];
+        return p && { code, label: p.name, color: grid.children[r * 4 + c].style.getPropertyValue('--c') };
+      })).filter(Boolean);
+      const groups = [{ title: 'Левая рука', items: side(LEFT) }, { title: 'Правая рука', items: side(RIGHT) }];
+      if (bySound.has('kick')) groups.push({ title: 'Ещё', items: [{ code: 'Space', label: 'Бочка' }] });
+      return groups;
+    }
 
     return {
       keydown(code, e) {
         const i = codeToPad[code];
         if (i == null) return false;
-        if (!e.repeat) hit(i, 0.9);
+        if (!e.repeat) hit(i, App.keyVel(e, 0.9));
         return true;
       },
       keyup: (code) => codeToPad[code] != null,
@@ -107,6 +120,7 @@
       },
       releaseAll() {},
       refresh() {},
+      keyActions,
       destroy() {},
     };
   };
