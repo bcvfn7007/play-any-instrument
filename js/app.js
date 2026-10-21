@@ -384,7 +384,8 @@
   /** Нота, сыгранная человеком (пальцем, мышью, клавиатурой, MIDI или микрофоном). */
   function noteOn(midi, vel, extra) {
     const v = sound(midi, vel, extra);
-    App.learn.heard(midi, inputFrom);
+    // Аккорд одной клавишей — это аккомпанемент себе: в «Разучить мелодию» он не ошибка.
+    if (!(extra && extra.chord)) App.learn.heard(midi, inputFrom);
     App.online.note(v, current.inst, midi, vel, (extra && extra.delay) || 0);
     return v;
   }
@@ -719,11 +720,13 @@
   }
 
   function renderHints(el, items) {
+    const edit = el.querySelector('.hint-edit'); // кнопка «Свои клавиши» остаётся, даже если подсказки сменились
     el.textContent = '';
     // Пустая строка вместо клавиш — все клавиши этой подсказки отключены: не показываем её.
     items.filter((it) => it && it[0] !== '').forEach(([keys, text]) => {
       el.append(h('span.hint' + (keys ? '' : '.tip'), null, keys ? h('kbd', null, keys) : null, text));
     });
+    if (edit) el.append(edit);
     el.hidden = !el.children.length;
   }
 
@@ -1151,12 +1154,16 @@
     beat: ['Нажимайте клетки, чтобы поставить удар. Проведите по ряду, чтобы заполнить несколько клеток сразу.', 'Выберите готовый ритм в списке и меняйте его под себя.', 'Ритм сохраняется в этом браузере.'],
   };
 
+  // Аккорды одной клавишей есть у всех клавишных, кроме литавр.
+  const CHORDS_TIP = 'Кнопка «Аккорды» на панели: цифры 1 … = или кнопки под клавиатурой играют целый аккорд одним нажатием, а буквами можно вести мелодию. Так хватает двух клавиш сразу — обычная клавиатура компьютера больше 2–4 клавиш одновременно часто не берёт.';
+
   function openHelp() {
     if (!current) return;
     const kind = current.layoutName === 'strings' && current.inst.bowed ? 'bowed' : current.layoutName;
+    const how = HOW[kind].concat(kind === 'keys' && current.inst.family !== 'drums' ? [CHORDS_TIP] : []);
     const hints = [...current.hints.querySelectorAll('.hint:not(.tip)')].map((el) => el.cloneNode(true));
     sheet('Как играть: ' + current.inst.name, h('div.help', null,
-      h('ul', null, HOW[kind].map((t) => h('li', null, t))),
+      h('ul', null, how.map((t) => h('li', null, t))),
       hints.length ? h('h3', null, 'Клавиатура компьютера') : null,
       hints.length ? h('div.help-keys', null, hints) : null,
       hints.length ? h('p.note', null, 'Клавиши работают в любой раскладке — и в русской, и в английской.') : null,
