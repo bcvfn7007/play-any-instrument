@@ -33,6 +33,7 @@
       const next = Math.max(8, Math.min(22, Math.floor(w / (w < 560 ? 40 : 56))));
       if (next !== naturals || !notes.length) {
         naturals = next;
+        start = clampStart(start);
         render();
       }
     }
@@ -50,7 +51,12 @@
       return list;
     }
 
-    const clampStart = (s) => Math.max(24, Math.min(96, s));
+    /** Ряд не уходит выше До₈ — самой высокой ноты, у которой есть записи и понятное название. */
+    function clampStart(s) {
+      let max = 96;
+      while (max > 24 && notesFrom(max).pop() > 108) max -= 12;
+      return Math.max(24, Math.min(max, s));
+    }
 
     function render() {
       board.textContent = '';

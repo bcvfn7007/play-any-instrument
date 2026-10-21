@@ -125,7 +125,9 @@
 
     function release(pr) {
       if (!pr) return;
-      cells[pr.s][pr.f].classList.remove('on');
+      // Гриф могли перестроить, пока лад держали (сменилась ширина) — такой клетки уже может не быть.
+      const cell = cells[pr.s] && cells[pr.s][pr.f];
+      if (cell) cell.classList.remove('on');
       if (bowed) {
         ctx.noteOff(pr.v);
         if (voices[pr.s] === pr.v) voices[pr.s] = null;
@@ -162,8 +164,7 @@
       chordBar.append(none);
       chordButtons.push(none);
       chords.forEach((c, i) => {
-        const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', title: 'Аккорд ' + c.name },
-          h('b', null, c.name), ctx.showKeys() && CHORD_KEYS[i] ? h('small', null, App.keymap.label(CHORD_KEYS[i])) : null);
+        const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', title: 'Аккорд ' + c.name }, h('b', null, c.name));
         b.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           App.audio.ensure();
@@ -174,6 +175,17 @@
         chordButtons.push(b);
       });
       root.append(chordBar);
+      chordKeys();
+    }
+
+    /** Подписи клавиш на кнопках аккордов — заново, когда подсказки включили или выключили. */
+    function chordKeys() {
+      chordButtons.slice(1).forEach((b, i) => {
+        const old = b.querySelector('small');
+        if (old) old.remove();
+        const key = ctx.showKeys() && CHORD_KEYS[i] ? App.keymap.label(CHORD_KEYS[i]) : '';
+        if (key) b.append(h('small', null, key));
+      });
     }
 
     function selectChord(c) {
@@ -295,7 +307,8 @@
             return true;
           }
         }
-        if (code === 'Space') {
+        // У смычковых боя нет: ноты держатся, пока их не отпустят, и пробел оставлял бы их звучать.
+        if (code === 'Space' && !bowed) {
           if (!e.repeat) strumChord(e.shiftKey, App.keyVel(e, 0.85));
           return true;
         }
@@ -306,6 +319,7 @@
         if (on) {
           const pos = position(midi);
           if (!pos) return;
+          release(external.get(midi)); // та же нота пришла ещё раз, не отпущенная
           cells[pos.s][pos.f].classList.add('on');
           external.set(midi, play(pos.s, pos.f, vel, 0));
         } else {
@@ -317,7 +331,10 @@
         keys.releaseAll();
         tracker.releaseAll();
       },
-      refresh: build,
+      refresh() {
+        build();
+        chordKeys();
+      },
       keyActions,
       highlightNext: (m) => nextMark.set(m),
       playable() {

@@ -21,7 +21,12 @@
     frame.append(field);
     root.append(frame);
 
-    const clampRoot = (r) => Math.max(24, Math.min(72, r));
+    /** Струны не уходят выше До₈ — самой высокой ноты, у которой есть записи. */
+    const clampRoot = (r) => {
+      let max = 72;
+      while (max > 24 && midisFrom(max)[count - 1] > 108) max -= 12;
+      return Math.max(24, Math.min(max, r));
+    };
     let octave = null;
     if (!inst.count) {
       octave = App.ui.stepper('Октава', (d) => {
@@ -49,6 +54,7 @@
       const next = Math.max(15, Math.min(36, Math.floor(w / 30)));
       if (next !== count) {
         count = next;
+        rootNote = clampRoot(rootNote);
         render();
       }
     }

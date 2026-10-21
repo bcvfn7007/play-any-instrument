@@ -33,9 +33,12 @@
     const s = preset.rows[r] || '';
     return Array.from({ length: STEPS }, (_, i) => s[i] === 'x');
   });
+  // Сохранённый ритм приводим к сетке ROWS × STEPS: испорченная запись не должна ломать драм-машину.
+  const fit = (p) => ROWS.map((_, r) => Array.from({ length: STEPS }, (_, i) => !!(p && p[r] && p[r][i])));
 
   App.layouts.beat = function (root, ctx) {
-    let pattern = ctx.getState('pattern', null) || parse(PRESETS.rock);
+    const saved = ctx.getState('pattern', null);
+    let pattern = Array.isArray(saved) ? fit(saved) : parse(PRESETS.rock);
     let bpm = ctx.getState('bpm', PRESETS.rock.bpm);
     let swing = ctx.getState('swing', 0);
     let playing = false;
@@ -76,6 +79,7 @@
       save();
       paintAll();
       select.value = '';
+      select.blur(); // иначе фокус остаётся в списке и пробел не запускает драм-машину
     });
 
     ctx.deck.append(playBtn, select, tempo.el, swingCtl.el);
@@ -86,9 +90,8 @@
     const cells = [];
     const heads = [];
     ROWS.forEach(([sound, name, color], r) => {
-      const key = App.keymap.label('Digit' + (r + 1));
       const head = h('button.beat-head', { type: 'button', style: { '--c': color }, title: 'Послушать: ' + name },
-        h('span', null, name), ctx.showKeys() && key ? h('kbd', null, key) : null);
+        h('span', null, name));
       head.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         App.audio.ensure();
@@ -110,6 +113,17 @@
       }
     });
     root.append(h('div.beat-wrap', null, grid));
+
+    /** Подписи клавиш у названий рядов — заново, когда подсказки включили или выключили. */
+    function headKeys() {
+      heads.forEach((head, r) => {
+        const old = head.querySelector('kbd');
+        if (old) old.remove();
+        const key = ctx.showKeys() && App.keymap.label('Digit' + (r + 1));
+        if (key) head.append(h('kbd', null, key));
+      });
+    }
+    headKeys();
 
     function flash(el) {
       el.classList.remove('hit');
@@ -172,6 +186,11 @@
     function schedule() {
       const ac = App.audio.ctx;
       const dur = 60 / bpm / 4;
+      // Вкладка была в фоне, и таймер опаздывал: пропущенные шаги не играем все разом.
+      while (nextTime < ac.currentTime - 0.05) {
+        nextTime += dur;
+        step++;
+      }
       while (nextTime < ac.currentTime + 0.12) {
         const s = step % STEPS;
         const t = nextTime + (s % 2 === 1 ? (swing / 100) * dur * 0.5 : 0);
@@ -231,7 +250,7 @@
         }
       },
       releaseAll() {},
-      refresh() {},
+      refresh: headKeys,
       destroy() {
         stop();
         window.removeEventListener('pointerup', endPaint);

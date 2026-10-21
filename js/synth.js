@@ -659,6 +659,12 @@
 
   let openHats = [];
 
+  /** Закрытый хай-хэт (палочкой или педалью) обрывает открытый — как на настоящей стойке. */
+  function chokeHats(t) {
+    openHats.forEach((h) => h.kill(t));
+    openHats = [];
+  }
+
   function metal(ctx, v, t, into, base) {
     [2, 3, 4.16, 5.43, 6.79, 8.21].forEach((r) => {
       const o1 = osc(ctx, v, 'square', (base || 40) * r * 10, t);
@@ -729,8 +735,7 @@
       return v;
     },
     hatClosed(ctx, d, t, vel) {
-      openHats.forEach((h) => h.kill(t));
-      openHats = [];
+      chokeHats(t);
       const v = drumVoice(ctx, d, t, 0.7 * velCurve(vel), 0.15);
       const hp = filter(ctx, 'highpass', 7500, 0.8);
       const g = envGain(ctx, t, 1, 0.05);
@@ -748,10 +753,13 @@
       g.connect(v.out);
       metal(ctx, v, t, hp);
       noiseHit(ctx, v, t, v.out, 'highpass', 8500, 0.7, 0.3, 0.45);
+      // Отзвучавшие не храним: в ритме из одних открытых хэтов список рос бы без конца.
+      openHats = openHats.filter((h) => !h.killed && h.endTime > ctx.currentTime);
       openHats.push(v);
       return v;
     },
     hatPedal(ctx, d, t, vel) {
+      chokeHats(t);
       const v = drumVoice(ctx, d, t, 1.0 * velCurve(vel), 0.12);
       const hp = filter(ctx, 'highpass', 6000, 0.8);
       const g = envGain(ctx, t, 1, 0.035, 0.006);

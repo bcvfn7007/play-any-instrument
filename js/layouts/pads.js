@@ -41,6 +41,7 @@
     root.append(grid);
     const bySound = new Map();
     const codeToPad = {};
+    const padKey = []; // клавиша левой руки для каждого пэда — её и подписываем
 
     const palette = App.notes.colors;
     pads.forEach((p, i) => {
@@ -50,14 +51,25 @@
       const right = RIGHT[firstRow + r] && RIGHT[firstRow + r][c];
       if (left) codeToPad[left] = i;
       if (right) codeToPad[right] = i;
+      padKey[i] = left;
       const tint = TINT[p.sound] || palette[(i * 5) % 12];
       const el = h('button.pad', { type: 'button', dataset: { i }, style: { '--c': tint }, 'aria-label': p.name },
-        h('span.pad-name', null, p.name),
-        ctx.showKeys() && left ? h('span.pad-key', null, App.keymap.label(left)) : null);
+        h('span.pad-name', null, p.name));
       grid.append(el);
       bySound.set(p.sound, el);
     });
     if (bySound.has('kick')) codeToPad.Space = pads.findIndex((p) => p.sound === 'kick');
+
+    /** Подписи клавиш на пэдах — заново, когда подсказки включили или выключили. */
+    function keyLabels() {
+      grid.querySelectorAll('.pad-key').forEach((el) => el.remove());
+      if (!ctx.showKeys()) return;
+      [...grid.children].forEach((el, i) => {
+        const key = padKey[i] && App.keymap.label(padKey[i]);
+        if (key) el.append(h('span.pad-key', null, key));
+      });
+    }
+    keyLabels();
 
     function hit(i, vel) {
       const p = pads[i];
@@ -113,13 +125,16 @@
       external(midi, on, vel) {
         if (!on) return;
         const sounds = App.drumkit.sounds;
-        const sound = Object.keys(sounds).find((s) => sounds[s].gm === midi) || GM_DRUMS[midi];
-        const i = pads.findIndex((p) => p.sound === sound);
-        if (i >= 0) hit(i, vel);
+        const exact = Object.keys(sounds).find((s) => sounds[s].gm === midi);
+        // Сначала сам звук, потом похожий (бочка 35 — тоже бочка, малый 40 — тоже малый).
+        const i = [exact, GM_DRUMS[midi]].map((s) => pads.findIndex((p) => p.sound === s)).find((x) => x >= 0);
+        if (i != null) hit(i, vel);
+        // Звука нет на пэдах, но он есть в наборе записей — играем его, а не случайный пэд.
+        else if (exact && ctx.inst.kit) ctx.drum(exact, vel);
         else hit(midi % pads.length, vel);
       },
       releaseAll() {},
-      refresh() {},
+      refresh: keyLabels,
       keyActions,
       destroy() {},
     };

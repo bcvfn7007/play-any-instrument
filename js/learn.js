@@ -249,6 +249,9 @@
           },
         }));
       });
+    }).catch(() => {
+      mine.textContent = '';
+      mine.append(h('p.empty', null, 'Не получилось открыть мои мелодии — браузер не дал доступ к хранилищу.'));
     });
   }
 
@@ -521,6 +524,7 @@
     const until = ac.currentTime + 0.3;
     while (acc.queue.length && acc.queue[0].at < until) {
       const { at, e } = acc.queue.shift();
+      if (at < ac.currentTime - 0.25) continue; // вкладка была в фоне — опоздавшие ноты не играем пачкой
       playEvent(e, Math.max(at, ac.currentTime));
     }
     acc.voices = acc.voices.filter((v) => v.endTime == null || v.endTime > ac.currentTime);
@@ -673,6 +677,7 @@
     speedSel.addEventListener('change', () => {
       settings.learn.speed = +speedSel.value;
       shell.save();
+      speedSel.blur(); // иначе фокус остаётся в списке и клавиши компьютера не играют
     });
     const accBtn = App.ui.toggle('Аккомпанемент', settings.learn.acc, (on) => {
       settings.learn.acc = on;

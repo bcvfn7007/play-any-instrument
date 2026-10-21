@@ -160,6 +160,9 @@
   }
 
   function newRec(parsed, kind, fileName) {
+    if (parsed.parts.every((p) => p.drums)) {
+      throw new Error('В этом файле только ударные — мелодии для разучивания нет. Найдите MIDI, где есть мелодия.');
+    }
     const melody = guessMelody(parsed.parts);
     const base = (fileName || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
     return {

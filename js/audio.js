@@ -222,12 +222,17 @@
 
   function schedule() {
     const ctx = audio.ctx;
+    // Вкладка была в фоне, и таймер опаздывал: пропущенные щелчки не играем все разом.
+    while (metro._next < ctx.currentTime - 0.05) {
+      metro._next += 60 / metro.bpm;
+      metro._beat++;
+    }
     while (metro._next < ctx.currentTime + 0.12) {
       const accent = metro._beat % metro.beats === 0;
       click(metro._next, accent);
       const beat = metro._beat % metro.beats;
       const delay = Math.max(0, (metro._next - ctx.currentTime) * 1000);
-      setTimeout(() => metro.onBeat && metro.onBeat(beat, accent), delay);
+      setTimeout(() => metro.running && metro.onBeat && metro.onBeat(beat, accent), delay);
       metro._next += 60 / metro.bpm;
       metro._beat++;
     }
