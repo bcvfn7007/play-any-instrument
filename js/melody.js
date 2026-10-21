@@ -3,7 +3,8 @@
  * Идея — как в алгоритме Melodia (Salamon, Gómez): для каждого кусочка звука считаем, насколько вероятна
  * каждая высота (сумма гармоник), собираем из вершин «контуры» — плавные линии высоты, — отбрасываем
  * слабые, октавные двойники и случайные, а из оставшихся берём самую заметную линию: обычно это голос.
- * Голос в песнях почти всегда стоит по центру, поэтому из стерео сначала оставляем середину.
+ * Линии намного слабее голоса (аккомпанемент во вступлении и проигрышах) мелодией не считаем.
+ * На ноты линию режем и по смене высоты, и по провалам громкости: «ля-ля» — две ноты.
  * Считается в отдельном потоке (Web Worker), чтобы страница не замирала.
  */
 (function () {
@@ -71,21 +72,40 @@
     let DEBUG = null; // для проверки: сюда складываются промежуточные данные
     // Настройки (подобраны на тестах; для проверки их можно передать в debug.opts).
     let O = null;
+    // Проверены на «песнях» из живых записей с известной мелодией: голос (высокий, низкий, с громкими
+    // и тихими фразами), саксофон и скрипка поверх пианино, гитары, баса, струнных и барабанов, —
+    // и на настоящей инструментальной записи.
     const DEFAULTS = {
-      frame: 0.7, // вершины салиентности в кадре: не слабее этой доли от самой сильной
+      frame: 0.55, // вершины салиентности в кадре: не слабее этой доли от самой сильной
       loudness: 150, // ослабляем низы, как слух (Гц): бас и бочка не должны перекрикивать голос
       lowHz: 0, // ниже этой высоты мелодию не ищем
       voicing: 0.2, // насколько слабее средней может быть линия мелодии (в стандартных отклонениях)
       nearVoicing: 1.2, // …а если она рядом с мелодией по высоте (± 7 полутонов) — то настолько
+      // Строже (0,7) — чище вступления у песен с голосом, но в инструментальной музыке, где мелодия
+      // ненамного громче аккомпанемента, теряются её куски. Потерять мелодию хуже, чем лишняя нота.
+      voiceAbs: 0.5, // линия слабее этой доли от силы голоса — не мелодия (а аккомпанемент во вступлении)
+      topShare: 0.15, // сила голоса — по самым сильным линиям, занимающим эту долю всего времени
+      voiceWin: 6, // …среди соседей ± столько секунд (0 — по всей песне)
+      nearAbs: 1, // а «заполнители пропусков» — не слабее такой доли от этого порога
+      dip: 0.65, // провал между нотами — сила мелодии ниже этой доли от соседних мест
+      minNote: 0.12, // нота короче (с) — не нота
     };
 
+    /** left, right — каналы песни (right может быть null). */
     function pitchTrack(left, right, progress, debug) {
       DEBUG = debug || null;
       O = Object.assign({}, DEFAULTS, debug && debug.opts);
+      // Каналы просто складываем: голос посередине в сумме и так громче инструментов по краям.
+      // Строже «вырезать середину» хуже — эхо зала у голоса в каналах разное, и высота начинает прыгать.
+      let x = left;
+      if (right) {
+        x = new Float32Array(left.length);
+        for (let i = 0; i < x.length; i++) x[i] = 0.5 * (left[i] + right[i]);
+      }
       const fft = makeFFT(NFFT);
       const hann = new Float32Array(WIN);
       for (let i = 0; i < WIN; i++) hann[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (WIN - 1));
-      const frames = Math.max(0, Math.floor((left.length - WIN) / HOP));
+      const frames = Math.max(0, Math.floor((x.length - WIN) / HOP));
       const re = new Float64Array(NFFT);
       const im = new Float64Array(NFFT);
       const mag = new Float64Array(NFFT / 2);
@@ -109,35 +129,11 @@
       for (let f = 0; f < frames; f++) {
         const o = f * HOP;
         for (let i = 0; i < NFFT; i++) {
-          if (i < WIN) {
-            re[i] = left[o + i] * hann[i];
-            im[i] = right ? right[o + i] * hann[i] : 0;
-          } else {
-            re[i] = 0;
-            im[i] = 0;
-          }
+          re[i] = i < WIN ? x[o + i] * hann[i] : 0;
+          im[i] = 0;
         }
         fft(re, im);
-        // Два вещественных спектра за одно преобразование: левый — в re, правый — в im.
-        for (let k = 1; k < NFFT / 2; k++) {
-          const ar = re[k];
-          const ai = im[k];
-          const br = re[NFFT - k];
-          const bi = im[NFFT - k];
-          if (!right) {
-            mag[k] = Math.hypot(ar, ai) * weight[k];
-            continue;
-          }
-          const lr = (ar + br) / 2;
-          const li = (ai - bi) / 2;
-          const rr = (ai + bi) / 2;
-          const ri = (br - ar) / 2;
-          const l = Math.hypot(lr, li);
-          const r = Math.hypot(rr, ri);
-          const d = Math.hypot(lr - rr, li - ri);
-          const s = 1 - d / (l + r + 1e-12); // 1 — звук посередине (голос), 0 — сбоку
-          mag[k] = (Math.hypot(lr + rr, li + ri) / 2) * Math.max(0, s) * Math.max(0, s) * weight[k];
-        }
+        for (let k = 1; k < NFFT / 2; k++) mag[k] = Math.hypot(re[k], im[k]) * weight[k];
         // Пики спектра.
         pf.length = 0;
         pa.length = 0;
@@ -160,9 +156,8 @@
         sal.fill(0);
         const floor = top * 0.01; // −40 дБ от самого громкого пика
         for (let i = 0; i < pf.length; i++) {
-          const a = pa[i];
-          if (a < floor) continue;
-          let w = a;
+          if (pa[i] < floor) continue;
+          let w = pa[i];
           for (let h = 1; h <= HARM; h++, w *= ALPHA) {
             const f0 = pf[i] / h;
             if (f0 < F_REF * 0.94) break;
@@ -285,7 +280,29 @@
       const ms = found.map((c) => c.mean);
       const mMean = ms.reduce((a, b) => a + b, 0) / ms.length;
       const mStd = Math.sqrt(ms.reduce((a, b) => a + (b - mMean) ** 2, 0) / ms.length);
-      let live = found.filter((c) => c.mean >= mMean - O.voicing * mStd || (c.dev > 40 && c.mean >= mMean - mStd));
+      // Сила голоса — по самым сильным линиям (с учётом длины). Аккомпанемент во вступлении и проигрышах
+      // заметно слабее одного голоса: его ноты разбросаны по многим звукам, а голос — один и громкий.
+      // Сравниваем с соседями по времени (± voiceWin с), а не со всей песней: куплет бывает тише припева.
+      const topOf = (list) => {
+        const sorted = list.slice().sort((a, b) => b.mean - a.mean);
+        const total = list.reduce((s, c) => s + c.bins.length, 0);
+        let got = 0;
+        for (const c of sorted) {
+          got += c.bins.length;
+          if (got >= total * O.topShare) return c.mean;
+        }
+        return 0;
+      };
+      const floorOf = new Map();
+      if (O.voiceWin) {
+        const win = O.voiceWin / (HOP / SR);
+        const mid = (c) => (c.start + c.end) / 2;
+        found.forEach((c) => floorOf.set(c, O.voiceAbs * topOf(found.filter((x) => Math.abs(mid(x) - mid(c)) <= win))));
+      } else {
+        const top = topOf(found);
+        found.forEach((c) => floorOf.set(c, O.voiceAbs * top));
+      }
+      let live = found.filter((c) => c.mean >= floorOf.get(c) && (c.mean >= mMean - O.voicing * mStd || (c.dev > 40 && c.mean >= mMean - mStd)));
       if (DEBUG) {
         DEBUG.peaks = peaks;
         DEBUG.found = found;
@@ -342,7 +359,7 @@
         live.forEach((c) => busy.fill(1, c.start, c.end));
         const keep = new Set(live);
         found.forEach((c) => {
-          if (keep.has(c) || c.mean < mMean - O.nearVoicing * mStd) return;
+          if (keep.has(c) || c.mean < mMean - O.nearVoicing * mStd || c.mean < floorOf.get(c) * O.nearAbs) return;
           if (Math.abs(distTo(c, mm)) > 700) return;
           let taken = 0;
           for (let t = c.start; t < c.end; t++) taken += busy[t];
@@ -396,20 +413,6 @@
 
     function toNotes(tr) {
       const track = tr.pitch;
-      // Сила мелодии, сглаженная по 3 кадрам.
-      const sal = new Float32Array(track.length);
-      for (let t = 0; t < track.length; t++) {
-        let s = 0;
-        let c = 0;
-        for (let k = -1; k <= 1; k++) {
-          if (t + k >= 0 && t + k < track.length && track[t + k]) {
-            s += tr.sal[t + k];
-            c++;
-          }
-        }
-        sal[t] = c ? s / c : 0;
-      }
-      const dt = HOP / SR;
       // Певец может петь чуть выше или ниже стандартного строя: находим общий сдвиг.
       let cs = 0;
       let sn = 0;
@@ -434,61 +437,11 @@
         w.sort((a, b) => a - b);
         m[t] = w[w.length >> 1];
       }
-      const notes = [];
-      let cur = null;
-      const close = (t) => {
-        if (!cur) return;
-        const vals = cur.vals.slice().sort((a, b) => a - b);
-        const pitch = Math.round(vals[vals.length >> 1]);
-        const d = (t - cur.from) * dt;
-        if (d >= 0.09) notes.push([Math.round(cur.from * dt * 1000) / 1000, Math.round(d * 1000) / 1000, pitch, 0.8]);
-        cur = null;
-      };
-      let gap = 0;
-      let cand = null;
-      let candN = 0;
-      for (let t = 0; t < m.length; t++) {
-        const v = m[t];
-        if (v == null) {
-          if (cur) cur.dip = true; // короткая тишина внутри — тоже провал между слогами
-          if (cur && ++gap > 3) close(t - gap + 1);
-          continue;
-        }
-        gap = 0;
-        if (!cur) {
-          cur = { from: t, center: Math.round(v), vals: [v], peak: sal[t], dip: false };
-          continue;
-        }
-        if (Math.abs(v - cur.center) < 0.65) {
-          // Та же высота, но звук провалился и снова окреп — новый слог: «ля-ля» — это две ноты.
-          if (sal[t] < cur.peak * 0.45) cur.dip = true;
-          else if (cur.dip && sal[t] > cur.peak * 0.75 && t - cur.from > 6) {
-            close(t);
-            cur = { from: t, center: Math.round(v), vals: [v], peak: sal[t], dip: false };
-            continue;
-          }
-          cur.peak = Math.max(cur.peak, sal[t]);
-          cur.vals.push(v);
-          cand = null;
-          candN = 0;
-          continue;
-        }
-        // Новая высота держится хотя бы 4 кадра (≈45 мс) — значит, новая нота.
-        const r = Math.round(v);
-        if (r === cand) candN++;
-        else {
-          cand = r;
-          candN = 1;
-        }
-        if (candN >= 4) {
-          close(t - 3);
-          cur = { from: t - 3, center: r, vals: [v], peak: sal[t], dip: false };
-          cand = null;
-          candN = 0;
-        }
-      }
-      close(m.length);
-      // Короткие «выбросы»: нота на долю секунды, далеко по высоте от обеих соседних, — это ошибка, а не мелодия.
+      return cleanup(segment(m, tr));
+    }
+
+    /** Короткие «выбросы»: нота на долю секунды, далеко по высоте от обеих соседних, — это ошибка, а не мелодия. */
+    function cleanup(notes) {
       return notes.filter((n, i) => {
         const a = notes[i - 1];
         const b = notes[i + 1];
@@ -496,6 +449,147 @@
         const near = n[0] - (a[0] + a[1]) < 0.15 && b[0] - (n[0] + n[1]) < 0.15;
         return !(near && Math.abs(n[2] - a[2]) >= 7 && Math.abs(n[2] - b[2]) >= 7);
       });
+    }
+
+    /**
+     * Нарезка линии высоты на ноты. Ноту начинает не только новая высота, но и провал громкости
+     * мелодии: «ля-ля» — две ноты. А голос, который подъезжает к ноте снизу, начинает её в провале
+     * перед подъездом, а не тогда, когда уже доехал.
+     * m — высота по кадрам (полутона с дробью, null — тишина), tr.sal — сила мелодии по кадрам.
+     */
+    function segment(m, tr) {
+      const T = m.length;
+      const dt = HOP / SR;
+      // Сила мелодии, сглаженная по 5 кадрам; тишина считается нулём — это самый глубокий провал.
+      const sm = new Float32Array(T);
+      for (let t = 0; t < T; t++) {
+        let s = 0;
+        for (let k = -2; k <= 2; k++) if (t + k >= 0 && t + k < T && m[t + k] != null) s += tr.sal[t + k];
+        sm[t] = s / 5;
+      }
+      const median = (list) => {
+        if (!list.length) return 0;
+        const a = list.slice().sort((x, y) => x - y);
+        return a[a.length >> 1];
+      };
+      // Провал: сила заметно ниже, чем и до, и после (сравниваем с медианой 35–115 мс по сторонам).
+      const valley = (t) => {
+        if (sm[t] > sm[t - 1] || sm[t] > sm[t + 1]) return false;
+        const L = [];
+        const R = [];
+        for (let k = 3; k <= 10; k++) {
+          if (t - k >= 0) L.push(sm[t - k]);
+          if (t + k < T) R.push(sm[t + k]);
+        }
+        return sm[t] < O.dip * Math.min(median(L), median(R));
+      };
+
+      const notes = [];
+      let t = 0;
+      while (t < T) {
+        // Кусок, где мелодия звучит (паузы до 2 кадров не разрывают его).
+        while (t < T && m[t] == null) t++;
+        if (t >= T) break;
+        const a = t;
+        let last = t;
+        let gap = 0;
+        for (; t < T; t++) {
+          if (m[t] != null) {
+            last = t;
+            gap = 0;
+          } else if (++gap > 2) break;
+        }
+        const b = last + 1;
+
+        const valleys = [];
+        for (let k = a + 3; k < b - 3; k++) {
+          if (!valley(k)) continue;
+          const prev = valleys[valleys.length - 1];
+          if (prev != null && k - prev < 8) {
+            if (sm[k] < sm[prev]) valleys[valleys.length - 1] = k;
+          } else valleys.push(k);
+        }
+
+        // Смена высоты: новая держится хотя бы 4 кадра (≈45 мс).
+        const bounds = [{ at: a, kind: 'start' }];
+        const used = new Set();
+        let center = null;
+        let cand = null;
+        let candN = 0;
+        for (let k = a; k < b; k++) {
+          const v = m[k];
+          if (v == null) continue;
+          if (center == null) {
+            center = Math.round(v);
+            continue;
+          }
+          if (Math.abs(v - center) < 0.65) {
+            cand = null;
+            candN = 0;
+            continue;
+          }
+          const r = Math.round(v);
+          if (r === cand) candN++;
+          else {
+            cand = r;
+            candN = 1;
+          }
+          if (candN < 4) continue;
+          // Если чуть раньше был провал — нота началась в нём (голос подъезжал к ней).
+          let at = k - 3;
+          for (let i = valleys.length - 1; i >= 0; i--) {
+            if (valleys[i] <= at + 2 && valleys[i] >= at - 12 && !used.has(valleys[i])) {
+              at = valleys[i];
+              used.add(valleys[i]);
+              break;
+            }
+          }
+          if (at > bounds[bounds.length - 1].at) bounds.push({ at, kind: 'pitch' });
+          center = r;
+          cand = null;
+          candN = 0;
+        }
+        // Остальные провалы — та же нота спета ещё раз.
+        valleys.forEach((v) => !used.has(v) && bounds.push({ at: v, kind: 'dip' }));
+        bounds.sort((x, y) => x.at - y.at);
+
+        let prev = null;
+        bounds.forEach((bd, i) => {
+          const from = bd.at;
+          const to = i + 1 < bounds.length ? bounds[i + 1].at : b;
+          if (to - from < 2) return;
+          // Высота ноты — по середине: начало (подъезд к ноте) и самый конец не считаем.
+          const len = to - from;
+          const vals = [];
+          for (let k = from + Math.max(2, Math.floor(len * 0.25)); k < to - Math.floor(len * 0.1); k++) if (m[k] != null) vals.push(m[k]);
+          if (!vals.length) for (let k = from; k < to; k++) if (m[k] != null) vals.push(m[k]);
+          if (!vals.length) return;
+          const pitch = Math.round(median(vals));
+          const note = { from, to, pitch, kind: bd.kind };
+          // Высота «качнулась» и вернулась — это всё та же нота.
+          if (prev && prev.pitch === pitch && prev.to === from && note.kind === 'pitch') {
+            prev.to = to;
+            return;
+          }
+          notes.push(note);
+          prev = note;
+        });
+      }
+
+      // Слишком короткие кусочки: приклеиваем к соседу той же высоты, остальные выбрасываем.
+      const out = [];
+      notes.forEach((n, i) => {
+        if ((n.to - n.from) * dt >= O.minNote) {
+          out.push(n);
+          return;
+        }
+        const p = out[out.length - 1];
+        const q = notes[i + 1];
+        if (p && p.pitch === n.pitch && p.to === n.from) p.to = n.to;
+        else if (q && q.pitch === n.pitch && q.from === n.to) q.from = n.from;
+      });
+      const r3 = (x) => Math.round(x * 1000) / 1000;
+      return out.map((n) => [r3((n.from + 1) * dt), r3((n.to - n.from) * dt), n.pitch, 0.8]);
     }
 
     return { pitchTrack, toNotes, SR };
@@ -556,5 +650,7 @@
       const core = CORE();
       return core.toNotes(core.pitchTrack(left, right, null, { opts }));
     },
+    /** Для проверки: сама математика — её можно запустить сразу в нескольких фоновых потоках. */
+    core: CORE,
   };
 })();
