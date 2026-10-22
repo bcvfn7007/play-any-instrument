@@ -31,27 +31,27 @@
     }
   }
 
-  const noteName = (m) => N.name(m, settings.labels === 'latin' ? 'latin' : 'ru', true);
+  const noteName = (m) => N.name(m, N.shown(settings.labels), true);
 
   /* =================== MIDI =================== */
 
-  const midi = { access: null, state: 'off', text: 'Не подключено', last: null, lastTimer: null };
+  const midi = { access: null, state: 'off', text: App.t('Не подключено'), last: null, lastTimer: null };
 
   function connectMidi() {
     if (!navigator.requestMIDIAccess) {
-      setMidi('unsupported', 'Этот браузер не умеет работать с MIDI. Подойдут Chrome, Edge или Opera.');
+      setMidi('unsupported', App.t('Этот браузер не умеет работать с MIDI. Подойдут Chrome, Edge или Opera.'));
       return;
     }
     if (midi.access) {
       bindMidi();
       return;
     }
-    setMidi('asking', 'Спрашиваем разрешение у браузера…');
+    setMidi('asking', App.t('Спрашиваем разрешение у браузера…'));
     navigator.requestMIDIAccess().then((access) => {
       midi.access = access;
       access.onstatechange = bindMidi;
       bindMidi();
-    }).catch(() => setMidi('denied', 'Браузер не дал доступ к MIDI. Разрешите его в настройках сайта (значок слева от адреса).'));
+    }).catch(() => setMidi('denied', App.t('Браузер не дал доступ к MIDI. Разрешите его в настройках сайта (значок слева от адреса).')));
   }
 
   function inputs() {
@@ -66,9 +66,9 @@
       input.onmidimessage = settings.live.midiOff.includes(input.name) ? null : (e) => onMidi(e, input);
     });
     const on = all.filter((i) => !settings.live.midiOff.includes(i.name));
-    if (!all.length) setMidi('empty', 'Доступ есть, но инструмент не найден. Подключите его — он появится сам.');
-    else if (!on.length) setMidi('paused', 'Все MIDI-инструменты выключены.');
-    else setMidi('on', 'Подключено: ' + on.map((i) => i.name).join(', '));
+    if (!all.length) setMidi('empty', App.t('Доступ есть, но инструмент не найден. Подключите его — он появится сам.'));
+    else if (!on.length) setMidi('paused', App.t('Все MIDI-инструменты выключены.'));
+    else setMidi('on', App.t('Подключено: ') + on.map((i) => i.name).join(', '));
   }
 
   function setMidi(state, text) {
@@ -146,12 +146,12 @@
     if (mic.starting) return mic.starting;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMic('error', window.isSecureContext === false
-        ? 'Микрофон работает только на защищённом адресе (https) или на localhost.'
-        : 'Этот браузер не даёт доступ к микрофону.');
+        ? App.t('Микрофон работает только на защищённом адресе (https) или на localhost.')
+        : App.t('Этот браузер не даёт доступ к микрофону.'));
       throw new Error('no-mic');
     }
     const ac = App.audio.ensure();
-    setMic('starting', 'Спрашиваем разрешение на микрофон…');
+    setMic('starting', App.t('Спрашиваем разрешение на микрофон…'));
     const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
     const want = settings.live.deviceId;
     mic.starting = (async () => {
@@ -173,7 +173,7 @@
       mic.monitor.gain.value = 1;
       setMonitor(settings.live.monitor);
       raw = new Float32Array(RAW);
-      stream.getAudioTracks().forEach((t) => (t.onended = () => stopMic('Микрофон отключился')));
+      stream.getAudioTracks().forEach((t) => (t.onended = () => stopMic(App.t('Микрофон отключился'))));
       mic.timer = setInterval(analyze, 20);
       setMic('on', '');
       listDevices();
@@ -183,8 +183,8 @@
     } catch (err) {
       const denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
       setMic(denied ? 'denied' : 'error', denied
-        ? 'Браузер не дал доступ к микрофону. Разрешите его (значок слева от адреса) и нажмите ещё раз.'
-        : 'Микрофон не включился. Проверьте, что он подключён и не занят другой программой.');
+        ? App.t('Браузер не дал доступ к микрофону. Разрешите его (значок слева от адреса) и нажмите ещё раз.')
+        : App.t('Микрофон не включился. Проверьте, что он подключён и не занят другой программой.'));
       throw err;
     } finally {
       mic.starting = null;
@@ -293,27 +293,27 @@
       if (tag) {
         tag.hidden = !on || mic.note == null;
         if (mic.note != null) {
-          tag.textContent = N.name(mic.note, settings.labels === 'latin' ? 'latin' : 'ru');
+          tag.textContent = N.name(mic.note, N.shown(settings.labels));
           tag.style.setProperty('--c', N.color(mic.note));
         }
       }
-      b.title = on ? 'Микрофон включён' + (mic.note != null ? ': слышу ' + noteName(mic.note) : '') : 'Настоящий инструмент: MIDI или микрофон';
+      b.title = on ? App.t('Микрофон включён') + (mic.note != null ? App.t(': слышу ') + noteName(mic.note) : '') : App.t('Настоящий инструмент: MIDI или микрофон');
     });
   }
 
   function summary() {
     const parts = [];
     if (midi.state === 'on') parts.push(midi.text);
-    if (mic.state === 'on') parts.push('микрофон включён');
-    return parts.length ? parts.join(' · ') : 'MIDI-клавиатура, электронные барабаны, гитара или голос через микрофон.';
+    if (mic.state === 'on') parts.push(App.t('микрофон включён'));
+    return parts.length ? parts.join(' · ') : App.t('MIDI-клавиатура, электронные барабаны, гитара или голос через микрофон.');
   }
 
   /* =================== Окно «Настоящие инструменты» =================== */
 
   const MODES = [
-    ['tuner', 'Тюнер', 'Только показывает, какую ноту вы играете и насколько точно — удобно настроить гитару или скрипку.'],
-    ['play', 'Играть звуком сайта', 'Сыгранная нота звучит выбранным инструментом сайта. Голосом можно играть на трубе, свистом — на флейте.'],
-    ['silent', 'Без звука', 'Сайт молчит, но слышит ваши ноты: они подсвечиваются и засчитываются в «Разучить мелодию». Играйте на своём инструменте.'],
+    ['tuner', App.t('Тюнер'), App.t('Только показывает, какую ноту вы играете и насколько точно — удобно настроить гитару или скрипку.')],
+    ['play', App.t('Играть звуком сайта'), App.t('Сыгранная нота звучит выбранным инструментом сайта. Голосом можно играть на трубе, свистом — на флейте.')],
+    ['silent', App.t('Без звука'), App.t('Сайт молчит, но слышит ваши ноты: они подсвечиваются и засчитываются в «Разучить мелодию». Играйте на своём инструменте.')],
   ];
 
   function open() {
@@ -322,13 +322,13 @@
 
     // ----- MIDI -----
     const midiStatus = h('p.live-status');
-    const midiBtn = h('button.btn', { type: 'button', onClick: connectMidi }, App.icon('midi'), 'Подключить MIDI');
+    const midiBtn = h('button.btn', { type: 'button', onClick: connectMidi }, App.icon('midi'), App.t('Подключить MIDI'));
     const midiList = h('div.live-devices');
     const midiLast = h('p.note.live-last');
-    const drums = App.ui.segmented([[true, 'Как барабаны'], [false, 'Как обычные ноты']], s.drumChannel, (v) => {
+    const drums = App.ui.segmented([[true, App.t('Как барабаны')], [false, App.t('Как обычные ноты')]], s.drumChannel, (v) => {
       s.drumChannel = v;
       shell.save();
-    }, '10-й канал MIDI');
+    }, App.t('10-й канал MIDI'));
 
     // ----- Микрофон -----
     const micBtn = h('button.btn.primary', { type: 'button' });
@@ -337,7 +337,7 @@
       else startMic().catch(() => {});
     });
     const micStatus = h('p.live-status');
-    const deviceSel = h('select.select.live-select', { 'aria-label': 'Микрофон или звуковая карта' });
+    const deviceSel = h('select.select.live-select', { 'aria-label': App.t('Микрофон или звуковая карта') });
     deviceSel.addEventListener('change', () => {
       s.deviceId = deviceSel.value;
       shell.save();
@@ -353,7 +353,7 @@
     const hzEl = h('div.tuner-hz');
     const meterFill = h('i');
     const gateMark = h('b');
-    const meter = h('div.tuner-meter', { title: 'Громкость с микрофона. Чёрточка — порог: тише неё звук не слушаем' }, meterFill, gateMark);
+    const meter = h('div.tuner-meter', { title: App.t('Громкость с микрофона. Чёрточка — порог: тише неё звук не слушаем') }, meterFill, gateMark);
     const tuner = h('div.tuner', { 'aria-live': 'off' }, noteEl, h('div.tuner-side', null, scale, centsEl, hzEl), meter);
     const modeNote = h('p.note');
     const mode = App.ui.segmented(MODES.map(([v, t]) => [v, t]), s.micMode, (v) => {
@@ -361,39 +361,39 @@
       s.micMode = v;
       shell.save();
       renderMode();
-    }, 'Что делать с нотами с микрофона');
-    const gate = App.ui.slider('Порог', -75, -25, 1, s.gate, (v) => {
+    }, App.t('Что делать с нотами с микрофона'));
+    const gate = App.ui.slider(App.t('Порог'), -75, -25, 1, s.gate, (v) => {
       s.gate = v;
       shell.save();
-    }, (v) => (v <= -62 ? 'очень чутко' : v <= -48 ? 'чутко' : v <= -36 ? 'средне' : 'только громкое'));
-    const monitor = App.ui.segmented([[false, 'Нет'], [true, 'Да']], s.monitor, (v) => {
+    }, (v) => (v <= -62 ? App.t('очень чутко') : v <= -48 ? App.t('чутко') : v <= -36 ? App.t('средне') : App.t('только громкое')));
+    const monitor = App.ui.segmented([[false, App.t('Нет')], [true, App.t('Да')]], s.monitor, (v) => {
       s.monitor = v;
       shell.save();
       setMonitor(v);
-    }, 'Слышать живой звук через сайт');
+    }, App.t('Слышать живой звук через сайт'));
 
     const content = h('div.live', null,
       h('section.live-sec', null,
-        h('h3', null, App.icon('midi'), 'MIDI-инструмент'),
-        h('p.note', null, 'MIDI-клавиатура, электронные барабаны, MIDI-гитара или контроллер — подключите по USB или Bluetooth. Работает в Chrome, Edge и Opera.'),
+        h('h3', null, App.icon('midi'), App.t('MIDI-инструмент')),
+        h('p.note', null, App.t('MIDI-клавиатура, электронные барабаны, MIDI-гитара или контроллер — подключите по USB или Bluetooth. Работает в Chrome, Edge и Opera.')),
         h('div.row', null, midiBtn),
         midiStatus, midiList, midiLast,
-        h('div.live-field', null, h('span.field-label', null, 'Удары на 10-м канале'), drums.el,
-          h('p.note', null, 'Электронные барабаны шлют удары на 10-м канале — так они звучат барабанами даже на пианино или гитаре.')),
+        h('div.live-field', null, h('span.field-label', null, App.t('Удары на 10-м канале')), drums.el,
+          h('p.note', null, App.t('Электронные барабаны шлют удары на 10-м канале — так они звучат барабанами даже на пианино или гитаре.'))),
         shell.current() && shell.current().layout && shell.current().layout.keyActions
-          ? h('button.btn.ghost', { type: 'button', onClick: () => App.keybind.open() }, App.icon('keyboard'), 'Назначить пэды и клавиши')
+          ? h('button.btn.ghost', { type: 'button', onClick: () => App.keybind.open() }, App.icon('keyboard'), App.t('Назначить пэды и клавиши'))
           : null),
       h('section.live-sec', null,
-        h('h3', null, App.icon('mic'), 'Микрофон или звуковая карта'),
-        h('p.note', null, 'Гитара, скрипка, флейта, голос — сайт слышит, какую ноту вы играете (по одной за раз). Электрогитару можно включить через звуковую карту.'),
+        h('h3', null, App.icon('mic'), App.t('Микрофон или звуковая карта')),
+        h('p.note', null, App.t('Гитара, скрипка, флейта, голос — сайт слышит, какую ноту вы играете (по одной за раз). Электрогитару можно включить через звуковую карту.')),
         h('div.row', null, micBtn, deviceSel),
         micStatus,
         tuner,
-        h('div.live-field', null, h('span.field-label', null, 'Что делать с нотами'), mode.el, modeNote),
+        h('div.live-field', null, h('span.field-label', null, App.t('Что делать с нотами')), mode.el, modeNote),
         h('div.live-field', null, gate.el),
-        h('div.live-field', null, h('span.field-label', null, 'Слышать и записывать живой звук'), monitor.el,
-          h('p.note', null, 'Звук микрофона пойдёт в колонки вместе с сайтом и попадёт в «Запись». Лучше в наушниках — иначе засвистит.')),
-        h('p.note', null, 'Совет: наденьте наушники, чтобы звук сайта не попадал обратно в микрофон.')));
+        h('div.live-field', null, h('span.field-label', null, App.t('Слышать и записывать живой звук')), monitor.el,
+          h('p.note', null, App.t('Звук микрофона пойдёт в колонки вместе с сайтом и попадёт в «Запись». Лучше в наушниках — иначе засвистит.'))),
+        h('p.note', null, App.t('Совет: наденьте наушники, чтобы звук сайта не попадал обратно в микрофон.'))));
 
     view = { midiStatus, midiBtn, midiList, midiLast, micBtn, micStatus, deviceSel, tuner, noteEl, centsEl, needle, hzEl, meterFill, gateMark, modeNote };
     renderMidi();
@@ -402,7 +402,7 @@
     renderMode();
     renderDevices();
     renderTuner();
-    shell.sheet('Настоящие инструменты', content, { onClose: () => (view = null) });
+    shell.sheet(App.t('Настоящие инструменты'), content, { onClose: () => (view = null) });
   }
 
   function renderMidi() {
@@ -419,7 +419,7 @@
         settings.live.midiOff = off;
         shell.save();
         bindMidi();
-      }, on ? 'Выключить ' + input.name : 'Включить ' + input.name);
+      }, on ? App.t('Выключить ') + input.name : App.t('Включить ') + input.name);
       v.midiList.append(t.el);
     });
   }
@@ -427,7 +427,7 @@
   function renderLast() {
     const l = midi.last;
     view.midiLast.textContent = l
-      ? 'Последнее: ' + noteName(l.n) + ' (нота ' + l.n + ', сила ' + l.velocity + ', канал ' + (l.ch + 1) + ')'
+      ? App.t('Последнее: ') + noteName(l.n) + App.t(' (нота ') + l.n + App.t(', сила ') + l.velocity + App.t(', канал ') + (l.ch + 1) + ')'
       : '';
   }
 
@@ -435,7 +435,7 @@
     const v = view;
     const on = mic.state === 'on';
     v.micBtn.textContent = '';
-    v.micBtn.append(App.icon(on ? 'stop' : 'mic'), on ? 'Выключить микрофон' : mic.state === 'starting' ? 'Включаем…' : 'Включить микрофон');
+    v.micBtn.append(App.icon(on ? 'stop' : 'mic'), on ? App.t('Выключить микрофон') : mic.state === 'starting' ? App.t('Включаем…') : App.t('Включить микрофон'));
     v.micBtn.disabled = mic.state === 'starting';
     v.micStatus.textContent = mic.text;
     v.micStatus.dataset.state = mic.state;
@@ -447,7 +447,7 @@
   function renderDevices() {
     const sel = view.deviceSel;
     sel.textContent = '';
-    mic.devices.forEach((d, i) => sel.append(h('option', { value: d.deviceId }, d.label || 'Микрофон ' + (i + 1))));
+    mic.devices.forEach((d, i) => sel.append(h('option', { value: d.deviceId }, d.label || App.t('Микрофон ') + (i + 1))));
     const cur = mic.stream && mic.stream.getAudioTracks()[0];
     const id = cur && cur.getSettings ? cur.getSettings().deviceId : settings.live.deviceId;
     if (id) sel.value = id;
@@ -457,8 +457,8 @@
   function renderMode() {
     const m = MODES.find((x) => x[0] === settings.live.micMode) || MODES[0];
     let text = m[2];
-    if (m[0] !== 'tuner' && shell.isDrums()) text = 'На барабанах микрофон работает только как тюнер.';
-    else if (m[0] !== 'tuner' && !shell.current()) text += ' Сначала выберите инструмент.';
+    if (m[0] !== 'tuner' && shell.isDrums()) text = App.t('На барабанах микрофон работает только как тюнер.');
+    else if (m[0] !== 'tuner' && !shell.current()) text += App.t(' Сначала выберите инструмент.');
     view.modeNote.textContent = text;
   }
 
@@ -472,7 +472,7 @@
     if (p == null) {
       v.noteEl.textContent = on ? '…' : '—';
       v.noteEl.style.removeProperty('--c');
-      v.centsEl.textContent = on ? 'Сыграйте ноту' : 'Микрофон выключен';
+      v.centsEl.textContent = on ? App.t('Сыграйте ноту') : App.t('Микрофон выключен');
       v.centsEl.dataset.tune = '';
       v.hzEl.textContent = '';
       v.needle.style.left = '50%';
@@ -487,8 +487,8 @@
     v.needle.style.left = 50 + cents + '%';
     const ok = Math.abs(cents) <= 5;
     v.centsEl.dataset.tune = ok ? 'ok' : 'off';
-    const by = shell.plural(Math.abs(cents), 'цент', 'цента', 'центов');
-    v.centsEl.textContent = ok ? 'Чисто' : cents < 0 ? 'Ниже на ' + by + ' — подтяните' : 'Выше на ' + by + ' — ослабьте';
-    v.hzEl.textContent = N.freq(p).toFixed(1) + ' Гц';
+    const by = shell.plural(Math.abs(cents), App.t('цент'), App.t('цента'), App.t('центов'));
+    v.centsEl.textContent = ok ? App.t('Чисто') : cents < 0 ? App.t('Ниже на ') + by + App.t(' — подтяните') : App.t('Выше на ') + by + App.t(' — ослабьте');
+    v.hzEl.textContent = N.freq(p).toFixed(1) + App.t(' Гц');
   }
 })();

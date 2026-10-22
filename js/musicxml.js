@@ -39,7 +39,7 @@
         break;
       }
     }
-    if (e < 0) throw new Error('Архив .mxl повреждён');
+    if (e < 0) throw new Error(App.t('Архив .mxl повреждён'));
     const count = d.getUint16(e + 10, true);
     let p = d.getUint32(e + 16, true);
     const files = {};
@@ -58,8 +58,8 @@
       const from = f.off + 30 + d.getUint16(f.off + 26, true) + d.getUint16(f.off + 28, true);
       const data = u8.subarray(from, from + f.size);
       if (f.method === 0) return data;
-      if (f.method !== 8) throw new Error('Архив .mxl сжат непривычным способом');
-      if (typeof DecompressionStream === 'undefined') throw new Error('Этот браузер не умеет распаковывать .mxl — сохраните ноты как «несжатый MusicXML»');
+      if (f.method !== 8) throw new Error(App.t('Архив .mxl сжат непривычным способом'));
+      if (typeof DecompressionStream === 'undefined') throw new Error(App.t('Этот браузер не умеет распаковывать .mxl — сохраните ноты как «несжатый MusicXML»'));
       const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
       return new Uint8Array(await new Response(stream).arrayBuffer());
     };
@@ -69,7 +69,7 @@
       if (m && files[m[1]]) root = m[1];
     }
     if (!root) root = Object.keys(files).find((n) => !n.startsWith('META-INF') && /\.(xml|musicxml)$/i.test(n));
-    if (!root) throw new Error('В архиве нет нот');
+    if (!root) throw new Error(App.t('В архиве нет нот'));
     return decode(await read(root));
   }
 
@@ -85,10 +85,10 @@
 
   function parse(text) {
     const doc = new DOMParser().parseFromString(text, 'application/xml');
-    if (doc.getElementsByTagName('parsererror').length) throw new Error('Файл с нотами повреждён');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error(App.t('Файл с нотами повреждён'));
     const root = doc.documentElement;
-    if (root.localName === 'score-timewise') throw new Error('Этот вид MusicXML («timewise») не поддерживается — сохраните ноты заново в MuseScore');
-    if (root.localName !== 'score-partwise') throw new Error('Это не ноты MusicXML');
+    if (root.localName === 'score-timewise') throw new Error(App.t('Этот вид MusicXML («timewise») не поддерживается — сохраните ноты заново в MuseScore'));
+    if (root.localName !== 'score-partwise') throw new Error(App.t('Это не ноты MusicXML'));
 
     const title = (
       (root.querySelector('work > work-title') || {}).textContent
@@ -111,7 +111,7 @@
     });
 
     const partEls = kids(root, 'part');
-    if (!partEls.length) throw new Error('В файле нет нот');
+    if (!partEls.length) throw new Error(App.t('В файле нет нот'));
     const order = measureOrder(kids(partEls[0], 'measure'));
     const tempos = [[0, 120]];
     let firstTempo = true;
@@ -183,15 +183,15 @@
       });
       if (!notes.length) return;
       const staves = [...new Set(notes.map((n) => n[4]))].sort();
-      const base = meta.name || 'Партия ' + (pi + 1);
+      const base = meta.name || App.t('Партия ') + (pi + 1);
       staves.forEach((st, si) => {
         const list = notes.filter((n) => n[4] === st);
-        const hand = staves.length === 2 ? (si === 0 ? ' — правая рука' : ' — левая рука') : staves.length > 2 ? ' — нотоносец ' + (si + 1) : '';
+        const hand = staves.length === 2 ? (si === 0 ? App.t(' — правая рука') : App.t(' — левая рука')) : staves.length > 2 ? App.t(' — нотоносец ') + (si + 1) : '';
         out.push({ name: base + hand, program: meta.program, drums: meta.drums, notesQ: list });
       });
     });
 
-    if (!out.length) throw new Error('В файле нет нот');
+    if (!out.length) throw new Error(App.t('В файле нет нот'));
 
     /* ---------- Четверти → секунды ---------- */
     tempos.sort((a, b) => a[0] - b[0]);

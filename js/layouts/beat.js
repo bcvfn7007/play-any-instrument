@@ -5,28 +5,28 @@
   App.layouts = App.layouts || {};
 
   const ROWS = [
-    ['kick', 'Бочка', '#6c68e6'],
-    ['snare', 'Малый', '#d65bb5'],
-    ['clap', 'Хлопок', '#c86de0'],
-    ['hatClosed', 'Хай-хэт', '#3fbf7f'],
-    ['hatOpen', 'Открытый хэт', '#8fcf4c'],
-    ['tomLow', 'Том низкий', '#e5484d'],
-    ['tomHigh', 'Том высокий', '#f5923a'],
-    ['crash', 'Тарелка', '#f2cf3a'],
+    ['kick', App.t('Бочка'), '#6c68e6'],
+    ['snare', App.t('Малый'), '#d65bb5'],
+    ['clap', App.t('Хлопок'), '#c86de0'],
+    ['hatClosed', App.t('Хай-хэт'), '#3fbf7f'],
+    ['hatOpen', App.t('Открытый хэт'), '#8fcf4c'],
+    ['tomLow', App.t('Том низкий'), '#e5484d'],
+    ['tomHigh', App.t('Том высокий'), '#f5923a'],
+    ['crash', App.t('Тарелка'), '#f2cf3a'],
   ];
   const STEPS = 16;
 
   // Строки шаблона идут в том же порядке, что и ROWS; «x» — удар.
   const PRESETS = {
-    rock: { name: 'Рок', bpm: 110, rows: ['x.......x.x.....', '....x.......x...', '', 'x.x.x.x.x.x.x.x.', '', '', '', 'x...............'] },
-    pop: { name: 'Поп', bpm: 100, rows: ['x.....x.x.......', '....x.......x...', '............x...', 'x.x.x.x.x.x.x.x.', '', '', '', ''] },
-    hiphop: { name: 'Хип-хоп', bpm: 88, rows: ['x......x..x.....', '....x.......x...', '', 'x.x.x.x.x.x.x.xx', '', '', '', ''] },
-    disco: { name: 'Диско', bpm: 120, rows: ['x...x...x...x...', '....x.......x...', '', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '', '', ''] },
-    house: { name: 'Хаус', bpm: 124, rows: ['x...x...x...x...', '', '....x.......x...', 'x.xxx.xxx.xxx.xx', '..x...x...x...x.', '', '', ''] },
-    reggaeton: { name: 'Реггетон', bpm: 95, rows: ['x...x...x...x...', '...x..x....x..x.', '', 'x.x.x.x.x.x.x.x.', '', '', '', ''] },
-    funk: { name: 'Фанк', bpm: 104, rows: ['x.x.......x..x..', '....x..x.x..x..x', '', 'xxxxxxxxxxxxxxxx', '', '', '', ''] },
-    rolls: { name: 'Сбивка', bpm: 110, rows: ['x...............', '............xxxx', '', 'x.x.x.x.x.x.....', '', '........xx......', '....xx..........', 'x...............'] },
-    empty: { name: 'Пусто', bpm: 100, rows: [] },
+    rock: { name: App.t('Рок'), bpm: 110, rows: ['x.......x.x.....', '....x.......x...', '', 'x.x.x.x.x.x.x.x.', '', '', '', 'x...............'] },
+    pop: { name: App.t('Поп'), bpm: 100, rows: ['x.....x.x.......', '....x.......x...', '............x...', 'x.x.x.x.x.x.x.x.', '', '', '', ''] },
+    hiphop: { name: App.t('Хип-хоп'), bpm: 88, rows: ['x......x..x.....', '....x.......x...', '', 'x.x.x.x.x.x.x.xx', '', '', '', ''] },
+    disco: { name: App.t('Диско'), bpm: 120, rows: ['x...x...x...x...', '....x.......x...', '', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '', '', ''] },
+    house: { name: App.t('Хаус'), bpm: 124, rows: ['x...x...x...x...', '', '....x.......x...', 'x.xxx.xxx.xxx.xx', '..x...x...x...x.', '', '', ''] },
+    reggaeton: { name: App.t('Реггетон'), bpm: 95, rows: ['x...x...x...x...', '...x..x....x..x.', '', 'x.x.x.x.x.x.x.x.', '', '', '', ''] },
+    funk: { name: App.t('Фанк'), bpm: 104, rows: ['x.x.......x..x..', '....x..x.x..x..x', '', 'xxxxxxxxxxxxxxxx', '', '', '', ''] },
+    rolls: { name: App.t('Сбивка'), bpm: 110, rows: ['x...............', '............xxxx', '', 'x.x.x.x.x.x.....', '', '........xx......', '....xx..........', 'x...............'] },
+    empty: { name: App.t('Пусто'), bpm: 100, rows: [] },
   };
 
   const parse = (preset) => ROWS.map((_, r) => {
@@ -52,23 +52,23 @@
     const playBtn = h('button.btn.primary', { type: 'button', 'aria-pressed': 'false' });
     const setPlayLabel = () => {
       playBtn.textContent = '';
-      playBtn.append(App.icon(playing ? 'stop' : 'play'), playing ? 'Стоп' : 'Играть');
+      playBtn.append(App.icon(playing ? 'stop' : 'play'), playing ? App.t('Стоп') : App.t('Играть'));
       playBtn.setAttribute('aria-pressed', String(playing));
     };
     playBtn.addEventListener('click', () => (playing ? stop() : start()));
     setPlayLabel();
 
-    const tempo = App.ui.slider('Темп', 60, 180, 1, bpm, (v) => {
+    const tempo = App.ui.slider(App.t('Темп'), 60, 180, 1, bpm, (v) => {
       bpm = v;
       ctx.setState('bpm', v);
-    }, (v) => v + ' уд/мин');
-    const swingCtl = App.ui.slider('Свинг', 0, 60, 5, swing, (v) => {
+    }, (v) => v + App.t(' уд/мин'));
+    const swingCtl = App.ui.slider(App.t('Свинг'), 0, 60, 5, swing, (v) => {
       swing = v;
       ctx.setState('swing', v);
     }, (v) => v + '%');
 
-    const select = h('select.select', { 'aria-label': 'Готовый ритм' },
-      h('option', { value: '' }, 'Готовые ритмы…'),
+    const select = h('select.select', { 'aria-label': App.t('Готовый ритм') },
+      h('option', { value: '' }, App.t('Готовые ритмы…')),
       Object.entries(PRESETS).map(([id, p]) => h('option', { value: id }, p.name)));
     select.addEventListener('change', () => {
       const p = PRESETS[select.value];
@@ -86,11 +86,11 @@
 
     /* ---------- Сетка ---------- */
 
-    const grid = h('div.beat', { role: 'grid', 'aria-label': 'Шаги ритма' });
+    const grid = h('div.beat', { role: 'grid', 'aria-label': App.t('Шаги ритма') });
     const cells = [];
     const heads = [];
     ROWS.forEach(([sound, name, color], r) => {
-      const head = h('button.beat-head', { type: 'button', style: { '--c': color }, title: 'Послушать: ' + name },
+      const head = h('button.beat-head', { type: 'button', style: { '--c': color }, title: App.t('Послушать: ') + name },
         h('span', null, name));
       head.addEventListener('pointerdown', (e) => {
         e.preventDefault();
@@ -106,7 +106,7 @@
           role: 'gridcell',
           dataset: { r, i },
           style: { '--c': color },
-          'aria-label': name + ', шаг ' + (i + 1),
+          'aria-label': name + App.t(', шаг ') + (i + 1),
         });
         grid.append(c);
         cells[r][i] = c;
@@ -212,9 +212,9 @@
     const DIGITS = ROWS.map((_, r) => 'Digit' + (r + 1));
     ctx.preloadDrums(ROWS.map((r) => r[0]));
     ctx.setHints([
-      [App.keymap.label('Space'), 'играть / стоп'],
-      [App.keymap.span(DIGITS), 'ударить по звуку вручную'],
-      [null, 'нажмите клетку или проведите по ряду, чтобы поставить удары'],
+      [App.keymap.label('Space'), App.t('играть / стоп')],
+      [App.keymap.span(DIGITS), App.t('ударить по звуку вручную')],
+      [null, App.t('нажмите клетку или проведите по ряду, чтобы поставить удары')],
     ]);
     paintAll();
 
@@ -236,8 +236,8 @@
         return false;
       },
       keyActions: () => [
-        { title: 'Драм-машина', items: [{ code: 'Space', label: 'Играть / стоп' }] },
-        { title: 'Ударить вручную', items: ROWS.map(([, name, color], r) => ({ code: DIGITS[r], label: name, color })) },
+        { title: App.t('Драм-машина'), items: [{ code: 'Space', label: App.t('Играть / стоп') }] },
+        { title: App.t('Ударить вручную'), items: ROWS.map(([, name, color], r) => ({ code: DIGITS[r], label: name, color })) },
       ],
       keyup: () => false,
       external(midi, on, vel) {

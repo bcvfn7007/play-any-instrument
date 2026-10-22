@@ -10,7 +10,7 @@
   const DEFAULTS = {
     volume: 0.8,
     reverb: 0.25,
-    labels: 'ru',
+    labels: App.i18n.noteMode,
     keyHints: true,
     source: 'samples',
     theme: 'auto',
@@ -70,6 +70,10 @@
   }
   applyTheme();
 
+  // Описание для поисковиков и ссылок в мессенджерах — на языке интерфейса.
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.content = App.t('Пианино, гитара, барабаны, скрипка, флейта, калимба и ещё 180 инструментов прямо в браузере. Играйте мышкой, пальцем, клавиатурой, MIDI или настоящим инструментом через микрофон — одни или вместе с друзьями.');
+
   /* ---------- Мелочи интерфейса ---------- */
 
   const app = document.getElementById('app');
@@ -104,10 +108,10 @@
   const hueOf = (inst) => (familyOf(inst) ? familyOf(inst).hue : '#9a96b8');
 
   function wordmark() {
-    // Восемь букв — восемь нот гаммы до мажор, и у каждой свой цвет.
-    const scale = [60, 62, 64, 65, 67, 69, 71, 72];
-    return h('span.wordmark-letters', { 'aria-label': 'Звукоряд' },
-      [...'Звукоряд'].map((ch, i) => h('span', { style: { '--c': N.color(scale[i]) }, 'aria-hidden': 'true' }, ch)));
+    // Каждая буква — следующая нота гаммы до мажор, и у каждой свой цвет (в «Звукоряде» их ровно восемь).
+    const name = App.t('Звукоряд');
+    return h('span.wordmark-letters', { 'aria-label': name },
+      [...name].map((ch, i) => h('span', { style: { '--c': N.color(App.scales.degree(App.scales.major, 60, i)) }, 'aria-hidden': 'true' }, ch)));
   }
 
   /** Модальная панель: справа на компьютере, снизу на телефоне. */
@@ -115,7 +119,7 @@
     releaseHeld();
     const dlg = h('dialog.sheet' + (opts && opts.wide ? '.wide' : ''), { 'aria-label': title });
     const inner = h('div.sheet-inner', null,
-      h('div.sheet-head', null, h('h2', null, title), iconButton('close', 'Закрыть', () => dlg.close())),
+      h('div.sheet-head', null, h('h2', null, title), iconButton('close', App.t('Закрыть'), () => dlg.close())),
       h('div.sheet-body', null, content));
     dlg.append(inner);
     dlg.addEventListener('close', () => {
@@ -141,7 +145,7 @@
     if (m) {
       const inst = App.instrumentById[m[1]];
       if (inst) return showPlay(inst);
-      toast('Такого инструмента нет — выберите из списка');
+      toast(App.t('Такого инструмента нет — выберите из списка'));
       history.replaceState(null, '', '#/');
     }
     showHome();
@@ -154,12 +158,12 @@
 
   function showHome() {
     teardownPlay();
-    document.title = 'Звукоряд — играйте на любом инструменте';
+    document.title = App.t('Звукоряд — играйте на любом инструменте');
     app.textContent = '';
     const search = h('input.search-input', {
       type: 'search',
-      placeholder: 'Найти: гитара, скрипка, барабаны…',
-      'aria-label': 'Найти инструмент',
+      placeholder: App.t('Найти: гитара, скрипка, барабаны…'),
+      'aria-label': App.t('Найти инструмент'),
       autocomplete: 'off',
       spellcheck: 'false',
     });
@@ -167,25 +171,26 @@
     const sections = h('div.sections');
     const hero = heroTubes();
 
-    const together = h('button.btn.net-home', { type: 'button', title: 'Играть вместе с друзьями по нику', onClick: () => App.online.open() },
-      App.icon('users'), h('span.btn-label', null, 'Играть вместе'), h('span.badge', { hidden: true }));
+    const together = h('button.btn.net-home', { type: 'button', title: App.t('Играть вместе с друзьями по нику'), onClick: () => App.online.open() },
+      App.icon('users'), h('span.btn-label', null, App.t('Играть вместе')), h('span.badge', { hidden: true }));
     app.append(h('div.home', null,
       h('header.site-head', null,
         h('a.wordmark', { href: '#/' }, wordmark()),
         h('div.head-actions', null,
+          langSelect(),
           together,
-          iconButton('plug', 'Подключить настоящий инструмент: MIDI или микрофон', () => App.live.open(), 'live-btn'),
-          iconButton('settings', 'Настройки', () => openSettings()))),
+          iconButton('plug', App.t('Подключить настоящий инструмент: MIDI или микрофон'), () => App.live.open(), 'live-btn'),
+          iconButton('settings', App.t('Настройки'), () => openSettings()))),
       h('section.hero', null,
         h('div.hero-text', null,
-          h('h1', null, 'На чём сыграем?'),
-          h('p.lead', null, 'Выберите инструмент и играйте мышкой, пальцем или клавиатурой компьютера. Устанавливать ничего не нужно.')),
+          h('h1', null, App.t('На чём сыграем?')),
+          h('p.lead', null, App.t('Выберите инструмент и играйте мышкой, пальцем или клавиатурой компьютера. Устанавливать ничего не нужно.'))),
         hero.el),
       h('div.search', null, App.icon('search'), search),
       results,
       sections,
       h('footer.site-foot', null,
-        h('p', null, 'Записи живых инструментов — библиотека FluidR3 GM, барабанов — MusyngKite и коллекция драм-машин smpldsnds. Без интернета всё звучит через встроенный синтезатор.'))));
+        h('p', null, App.t('Записи живых инструментов — библиотека FluidR3 GM, барабанов — MusyngKite и коллекция драм-машин smpldsnds. Без интернета всё звучит через встроенный синтезатор.')))));
 
     renderSections(sections);
     updateNetButtons();
@@ -200,17 +205,36 @@
     heroKeys = hero.keys;
   }
 
+  /** Новый язык — и подписи нот, как принято в нём (по-испански «Do Re Mi», по-английски «C D E»). */
+  function switchLanguage(id) {
+    const lang = App.i18n.languages.find((l) => l.id === id);
+    if (!lang) return;
+    settings.labels = lang.notes;
+    try {
+      localStorage.setItem(STORE, JSON.stringify(settings)); // сразу: страница сейчас перезагрузится
+    } catch (e) { /* приватный режим */ }
+    App.i18n.set(id);
+  }
+
+  /** Выбор языка прямо на главной — его должно быть видно, даже если человек не понимает текущий язык. */
+  function langSelect() {
+    const sel = h('select.lang-select', { 'aria-label': 'Language / Язык', title: 'Language / Язык' },
+      App.i18n.languages.map((l) => h('option', { value: l.id, selected: l.id === App.i18n.lang }, l.name)));
+    sel.addEventListener('change', () => switchLanguage(sel.value));
+    return sel;
+  }
+
   function heroTubes() {
     const notes = [60, 62, 64, 65, 67, 69, 71, 72];
     const codes = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'];
-    const row = h('div.tubes', { role: 'group', 'aria-label': 'Попробуйте: нажмите на трубки или проведите по ним' });
+    const row = h('div.tubes', { role: 'group', 'aria-label': App.t('Попробуйте: нажмите на трубки или проведите по ним') });
     const els = notes.map((m, i) => {
       const el = h('div.tube', {
         dataset: { midi: m },
         role: 'button',
-        'aria-label': N.name(m, 'ru', true),
+        'aria-label': N.name(m, null, true),
         style: { '--c': N.color(m), '--len': 100 - i * 7.5 + '%' },
-      }, h('span.tube-name', null, N.name(m, settings.labels === 'none' ? 'ru' : settings.labels)),
+      }, h('span.tube-name', null, N.name(m, N.shown(settings.labels))),
       coarse ? null : h('span.tube-key', null, App.keymap.label(codes[i])));
       row.append(el);
       return el;
@@ -228,7 +252,7 @@
     const held = new Set();
     return {
       el: h('div.hero-play', null, row,
-        h('p.hero-caption', null, coarse ? 'Нажмите на трубки — это звучит гамма до мажор.' : 'Нажмите на трубки или клавиши A S D F G H J K — это гамма до мажор.')),
+        h('p.hero-caption', null, coarse ? App.t('Нажмите на трубки — это звучит гамма до мажор.') : App.t('Нажмите на трубки или клавиши A S D F G H J K — это гамма до мажор.'))),
       keys: {
         down(code, e) {
           const i = codes.indexOf(code);
@@ -244,7 +268,7 @@
 
   function tile(inst) {
     const fav = settings.favorites.includes(inst.id);
-    const favBtn = h('button.fav', { type: 'button', 'aria-pressed': String(fav), 'aria-label': (fav ? 'Убрать из избранного: ' : 'В избранное: ') + inst.name, title: fav ? 'Убрать из избранного' : 'В избранное' }, App.icon('star'));
+    const favBtn = h('button.fav', { type: 'button', 'aria-pressed': String(fav), 'aria-label': (fav ? App.t('Убрать из избранного: ') : App.t('В избранное: ')) + inst.name, title: fav ? App.t('Убрать из избранного') : App.t('В избранное') }, App.icon('star'));
     favBtn.addEventListener('click', () => toggleFav(inst, favBtn));
     return h('div.tile-wrap', { style: { '--fam': hueOf(inst) } },
       h('a.tile', { href: '#/play/' + inst.id },
@@ -262,9 +286,9 @@
     const on = i < 0;
     if (btn) {
       btn.setAttribute('aria-pressed', String(on));
-      btn.title = on ? 'Убрать из избранного' : 'В избранное';
+      btn.title = on ? App.t('Убрать из избранного') : App.t('В избранное');
     }
-    toast(on ? inst.name + ' — в избранном' : inst.name + ' — убрано из избранного');
+    toast(on ? inst.name + App.t(' — в избранном') : inst.name + App.t(' — убрано из избранного'));
     const sections = document.querySelector('.sections');
     if (sections && !sections.hidden) {
       const y = window.scrollY;
@@ -285,8 +309,8 @@
     root.textContent = '';
     const favs = settings.favorites.map((id) => App.instrumentById[id]).filter(Boolean);
     const recent = settings.recent.map((id) => App.instrumentById[id]).filter(Boolean).filter((i) => !settings.favorites.includes(i.id));
-    if (favs.length) root.append(section('Избранное', favs));
-    if (recent.length) root.append(section('Недавние', recent.slice(0, 6)));
+    if (favs.length) root.append(section(App.t('Избранное'), favs));
+    if (recent.length) root.append(section(App.t('Недавние'), recent.slice(0, 6)));
     App.families.forEach((f) => {
       const items = App.instruments.filter((i) => i.family === f.id);
       root.append(section(f.name, items));
@@ -301,17 +325,17 @@
       body.append(h('div.gm-group', null, h('h3', null, fam),
         h('div.chips', null, items.map((i) => h('a.chip-link', { href: '#/play/' + i.id }, i.name)))));
     });
-    const toggle = h('button.btn', { type: 'button', 'aria-expanded': 'false' }, 'Показать все 128');
+    const toggle = h('button.btn', { type: 'button', 'aria-expanded': 'false' }, App.t('Показать все 128'));
     toggle.addEventListener('click', () => {
       const open = body.hidden;
       body.hidden = !open;
       toggle.setAttribute('aria-expanded', String(open));
-      toggle.textContent = open ? 'Свернуть список' : 'Показать все 128';
+      toggle.textContent = open ? App.t('Свернуть список') : App.t('Показать все 128');
     });
     return h('section.section.gm', null,
       h('div.section-head', null,
-        h('h2.section-title', null, 'Весь оркестр'),
-        h('p.section-note', null, '128 инструментов General MIDI — от рояля до вертолёта. На всех играют клавишами.')),
+        h('h2.section-title', null, App.t('Весь оркестр')),
+        h('p.section-note', null, App.t('128 инструментов General MIDI — от рояля до вертолёта. На всех играют клавишами.'))),
       toggle, body);
   }
 
@@ -333,13 +357,13 @@
     results.hidden = false;
     sections.hidden = true;
     if (!found.length) {
-      results.append(h('p.empty', null, 'По запросу «' + q.trim() + '» ничего нет. Попробуйте «гитара», «флейта» или «барабаны».'));
+      results.append(h('p.empty', null, App.t('По запросу «') + q.trim() + App.t('» ничего нет. Попробуйте «гитара», «флейта» или «барабаны».')));
       return;
     }
     const main = found.filter((i) => i.family !== 'gm');
     const gm = found.filter((i) => i.family === 'gm');
-    if (main.length) results.append(section('Найдено', main));
-    if (gm.length) results.append(section(main.length ? 'Ещё в оркестре' : 'Найдено в оркестре', gm));
+    if (main.length) results.append(section(App.t('Найдено'), main));
+    if (gm.length) results.append(section(main.length ? App.t('Ещё в оркестре') : App.t('Найдено в оркестре'), gm));
   }
 
   /* ---------- Экран игры ---------- */
@@ -460,14 +484,14 @@
 
   function kitSwitch(inst) {
     return h('div.deck-group', null,
-      h('span.deck-label', null, 'Звук'),
+      h('span.deck-label', null, App.t('Звук')),
       App.ui.segmented(inst.kits.map((k) => [k, App.drumkit.kits[k].name]), currentKit(), (v) => {
         settings.drumKit[inst.id] = v;
         save();
         App.online.setInstrument(inst, v);
         if (settings.source === 'samples') App.drumkit.preload(v, current.drumList);
         updateSource();
-      }, 'Набор звуков').el);
+      }, App.t('Набор звуков')).el);
   }
 
   function continuous(f) {
@@ -602,18 +626,18 @@
   function showPlay(inst) {
     teardownPlay();
     heroKeys = null;
-    document.title = inst.name + ' — Звукоряд';
+    document.title = inst.name + App.t(' — Звукоряд');
     settings.recent = [inst.id].concat(settings.recent.filter((id) => id !== inst.id)).slice(0, 10);
     save();
 
     app.textContent = '';
     const layoutName = pickLayout(inst);
     const bar = buildBar(inst);
-    const band = h('div.band', { hidden: true, role: 'status', 'aria-label': 'Кто играет вместе с вами' });
-    const deck = h('div.deck', { role: 'toolbar', 'aria-label': 'Настройки инструмента' });
-    const learnBar = h('section.learn', { hidden: true, 'aria-label': 'Разучивание мелодии' });
+    const band = h('div.band', { hidden: true, role: 'status', 'aria-label': App.t('Кто играет вместе с вами') });
+    const deck = h('div.deck', { role: 'toolbar', 'aria-label': App.t('Настройки инструмента') });
+    const learnBar = h('section.learn', { hidden: true, 'aria-label': App.t('Разучивание мелодии') });
     const stage = h('main.stage');
-    const hints = h('footer.hints', { 'aria-label': 'Подсказки' });
+    const hints = h('footer.hints', { 'aria-label': App.t('Подсказки') });
     const page = h('div.play', { style: { '--fam': hueOf(inst) } }, bar.el, band, deck, learnBar, stage, hints);
     app.append(page);
     current = { inst, layoutName, page, bar, band, deck, stage, hints, layout: null, preloadList: [], drumList: [], buses: null };
@@ -659,18 +683,18 @@
     const factory = App.layouts[c.layoutName];
     c.layout = factory(c.stage, makeCtx(c));
     if (c.layout.keyActions && !coarse) {
-      c.hints.append(h('button.hint-edit', { type: 'button', title: 'Назначить свои клавиши для этого инструмента', onClick: () => App.keybind.open() },
-        App.icon('keyboard'), 'Свои клавиши'));
+      c.hints.append(h('button.hint-edit', { type: 'button', title: App.t('Назначить свои клавиши для этого инструмента'), onClick: () => App.keybind.open() },
+        App.icon('keyboard'), App.t('Свои клавиши')));
       c.hints.hidden = false;
     }
     if (c.inst.editable) c.deck.append(synthEditor());
     // Разучивать можно там, где у каждой ноты своё место: не на барабанах, драм-машине и терменвоксе.
     if (c.layout.highlightNext) {
-      c.deck.append(h('button.btn.learn-btn', { type: 'button', title: 'Выбрать песню и сыграть её по подсказкам', onClick: () => App.learn.open() },
-        App.icon('note'), 'Разучить мелодию'));
+      c.deck.append(h('button.btn.learn-btn', { type: 'button', title: App.t('Выбрать песню и сыграть её по подсказкам'), onClick: () => App.learn.open() },
+        App.icon('note'), App.t('Разучить мелодию')));
     }
     if (['keys', 'strings', 'bars', 'beat', 'harp', 'kit'].includes(c.layoutName)) {
-      c.deck.append(h('span.rotate-tip', null, 'Поверните телефон боком'));
+      c.deck.append(h('span.rotate-tip', null, App.t('Поверните телефон боком')));
     }
     c.deck.hidden = !c.deck.children.length;
     updateSource();
@@ -694,7 +718,7 @@
       label: (m, withOct) => N.name(m, settings.labels, withOct),
       labelMode: () => settings.labels,
       /** Название ноты с октавой — даже если подписи на инструменте выключены. */
-      noteName: (m) => N.name(m, settings.labels === 'latin' ? 'latin' : 'ru', true),
+      noteName: (m) => N.name(m, N.shown(settings.labels), true),
       showKeys: () => settings.keyHints && !coarse,
       getState: (k, d) => (st[k] !== undefined ? st[k] : d),
       setState(k, v) {
@@ -733,12 +757,12 @@
   function layoutSwitch(inst) {
     const names = [inst.layout].concat(inst.alt || []);
     const label = (l) => App.layoutNames[l][0].toUpperCase() + App.layoutNames[l].slice(1);
-    return App.ui.segmented(names.map((l) => [l, label(l), 'Играть на раскладке «' + App.layoutNames[l] + '»']), current.layoutName, (v) => {
+    return App.ui.segmented(names.map((l) => [l, label(l), App.t('Играть на раскладке «') + App.layoutNames[l] + '»']), current.layoutName, (v) => {
       settings.layoutPick[inst.id] = v;
       save();
       current.layoutName = v;
       mountLayout();
-    }, 'Вид инструмента').el;
+    }, App.t('Вид инструмента')).el;
   }
 
   function synthEditor() {
@@ -746,35 +770,37 @@
     const toPct = (hz) => Math.round((Math.log(hz / 150) / Math.log(14000 / 150)) * 100);
     const fromPct = (p) => 150 * Math.pow(14000 / 150, p / 100);
     return h('div.synth-edit', null,
-      App.ui.segmented([['sawtooth', 'Пила'], ['square', 'Квадрат'], ['triangle', 'Треугольник'], ['sine', 'Синус']], s.wave, (v) => {
+      App.ui.segmented([['sawtooth', App.t('Пила')], ['square', App.t('Квадрат')], ['triangle', App.t('Треугольник')], ['sine', App.t('Синус')]], s.wave, (v) => {
         s.wave = v;
         save();
-      }, 'Форма волны').el,
-      App.ui.slider('Фильтр', 0, 100, 1, toPct(s.cutoff), (v) => {
+      }, App.t('Форма волны')).el,
+      App.ui.slider(App.t('Фильтр'), 0, 100, 1, toPct(s.cutoff), (v) => {
         s.cutoff = fromPct(v);
         save();
-      }, (v) => Math.round(fromPct(v)) + ' Гц').el,
-      App.ui.slider('Резонанс', 0.5, 18, 0.5, s.q, (v) => {
+      }, (v) => Math.round(fromPct(v)) + App.t(' Гц')).el,
+      App.ui.slider(App.t('Резонанс'), 0.5, 18, 0.5, s.q, (v) => {
         s.q = v;
         save();
       }, (v) => v.toFixed(1)).el,
-      App.ui.slider('Атака', 0.002, 1.5, 0.002, s.attack, (v) => {
+      App.ui.slider(App.t('Атака'), 0.002, 1.5, 0.002, s.attack, (v) => {
         s.attack = v;
         save();
-      }, (v) => Math.round(v * 1000) + ' мс').el,
-      App.ui.slider('Затухание', 0.03, 3, 0.01, s.release, (v) => {
+      }, (v) => Math.round(v * 1000) + App.t(' мс')).el,
+      App.ui.slider(App.t('Затухание'), 0.03, 3, 0.01, s.release, (v) => {
         s.release = v;
         save();
-      }, (v) => v.toFixed(2) + ' с').el,
-      App.ui.slider('Расстройка', 0, 40, 1, s.detune, (v) => {
+      }, (v) => v.toFixed(2) + App.t(' с')).el,
+      App.ui.slider(App.t('Расстройка'), 0, 40, 1, s.detune, (v) => {
         s.detune = v;
         save();
-      }, (v) => v + ' ц').el);
+      }, (v) => v + App.t(' ц')).el);
   }
 
   /* ---------- Разучивание мелодий — в learn.js, свои мелодии — в mysongs.js ---------- */
 
   function plural(n, one, few, many) {
+    // В других языках форм две: «1 note», «5 notes» — переводы few и many там одинаковые.
+    if (App.i18n.lang !== 'ru') return n + ' ' + (n === 1 ? one : many);
     const a = n % 10;
     const b = n % 100;
     return n + ' ' + (a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many);
@@ -783,8 +809,8 @@
   /* ---------- Верхняя панель ---------- */
 
   function buildBar(inst) {
-    const back = h('a.icon-btn.back', { href: '#/', 'aria-label': 'Все инструменты', title: 'Все инструменты' }, App.icon('back'));
-    const title = h('button.inst-title', { type: 'button', title: 'Сменить инструмент', 'aria-haspopup': 'dialog' },
+    const back = h('a.icon-btn.back', { href: '#/', 'aria-label': App.t('Все инструменты'), title: App.t('Все инструменты') }, App.icon('back'));
+    const title = h('button.inst-title', { type: 'button', title: App.t('Сменить инструмент'), 'aria-haspopup': 'dialog' },
       h('span.inst-icon', { 'aria-hidden': 'true' }, inst.icon),
       h('span.inst-name', null, inst.name),
       App.icon('chevron-down'));
@@ -793,7 +819,7 @@
     const source = h('button.source-chip', { type: 'button' }, h('span.dot'), h('span.source-text'));
     source.addEventListener('click', toggleSource);
 
-    const vol = App.ui.slider('Громкость', 0, 1, 0.01, settings.volume, (v) => {
+    const vol = App.ui.slider(App.t('Громкость'), 0, 1, 0.01, settings.volume, (v) => {
       settings.volume = v;
       App.audio.setVolume(v);
       save();
@@ -802,16 +828,16 @@
     vol.el.prepend(App.icon('volume'));
     vol.el.querySelector('span').remove();
 
-    const metro = iconButton('metronome', 'Метроном', (e, b) => toggleMetronomePanel(b), 'metro-btn');
+    const metro = iconButton('metronome', App.t('Метроном'), (e, b) => toggleMetronomePanel(b), 'metro-btn');
     if (App.audio.metronome.running) metro.classList.add('active');
 
-    const rec = h('button.rec-btn', { type: 'button', title: 'Записать, что вы играете', 'aria-pressed': 'false' }, App.icon('record'), h('span.rec-label', null, 'Запись'));
+    const rec = h('button.rec-btn', { type: 'button', title: App.t('Записать, что вы играете'), 'aria-pressed': 'false' }, App.icon('record'), h('span.rec-label', null, App.t('Запись')));
     rec.addEventListener('click', toggleRecord);
 
-    const takesBtn = iconButton('tape', 'Мои записи', openRecordings, 'takes-btn');
+    const takesBtn = iconButton('tape', App.t('Мои записи'), openRecordings, 'takes-btn');
     takesBtn.append(h('span.badge', { hidden: true }));
 
-    const together = iconButton('users', 'Играть вместе', () => App.online.open(), 'net-btn');
+    const together = iconButton('users', App.t('Играть вместе'), () => App.online.open(), 'net-btn');
     together.append(h('span.badge', { hidden: true }));
 
     const el = h('header.topbar', null,
@@ -823,10 +849,10 @@
       rec,
       takesBtn,
       together,
-      iconButton('plug', 'Настоящий инструмент: MIDI или микрофон', () => App.live.open(), 'live-btn wide-only'),
-      iconButton('help', 'Как играть', openHelp, 'wide-only'),
-      iconButton('fullscreen', 'Во весь экран', toggleFullscreen, 'wide-only'),
-      iconButton('settings', 'Настройки', () => openSettings()));
+      iconButton('plug', App.t('Настоящий инструмент: MIDI или микрофон'), () => App.live.open(), 'live-btn wide-only'),
+      iconButton('help', App.t('Как играть'), openHelp, 'wide-only'),
+      iconButton('fullscreen', App.t('Во весь экран'), toggleFullscreen, 'wide-only'),
+      iconButton('settings', App.t('Настройки'), () => openSettings()));
     const b = { el, source, rec, takesBtn, metro };
     setTimeout(() => {
       updateRecButton(b);
@@ -857,31 +883,31 @@
     if (!inst.gm && kit) return updateDrumSource(chip, text, kit);
     if (!inst.gm) {
       chip.dataset.state = 'synth';
-      text.textContent = 'Синтез';
-      chip.title = 'У этого инструмента звук создаётся синтезатором прямо в браузере';
+      text.textContent = App.t('Синтез');
+      chip.title = App.t('У этого инструмента звук создаётся синтезатором прямо в браузере');
       chip.disabled = true;
       return;
     }
     chip.disabled = false;
     if (settings.source !== 'samples') {
       chip.dataset.state = 'synth';
-      text.textContent = 'Синтез';
-      chip.title = 'Сейчас играет синтезатор. Нажмите, чтобы включить записи живого инструмента';
+      text.textContent = App.t('Синтез');
+      chip.title = App.t('Сейчас играет синтезатор. Нажмите, чтобы включить записи живого инструмента');
       return;
     }
     const p = App.sampler.progress(inst.gm, current.preloadList);
     if (p.failed) {
       chip.dataset.state = 'fail';
-      text.textContent = 'Синтез';
-      chip.title = 'Записи не загрузились — проверьте интернет. Пока играет синтезатор';
+      text.textContent = App.t('Синтез');
+      chip.title = App.t('Записи не загрузились — проверьте интернет. Пока играет синтезатор');
     } else if (p.loaded < p.total) {
       chip.dataset.state = 'loading';
-      text.textContent = 'Загрузка ' + Math.round((p.loaded / Math.max(1, p.total)) * 100) + '%';
-      chip.title = 'Загружаются записи живого инструмента. Можно играть уже сейчас';
+      text.textContent = App.t('Загрузка ') + Math.round((p.loaded / Math.max(1, p.total)) * 100) + '%';
+      chip.title = App.t('Загружаются записи живого инструмента. Можно играть уже сейчас');
     } else {
       chip.dataset.state = 'live';
-      text.textContent = 'Живой звук';
-      chip.title = 'Играют записи настоящего инструмента. Нажмите, чтобы переключиться на синтезатор';
+      text.textContent = App.t('Живой звук');
+      chip.title = App.t('Играют записи настоящего инструмента. Нажмите, чтобы переключиться на синтезатор');
     }
   }
 
@@ -889,20 +915,20 @@
     chip.disabled = false;
     const p = App.drumkit.progress(kit, current.drumList);
     let state = 'live';
-    let label = 'Живой звук';
-    let title = 'Играют записи настоящих барабанов. Нажмите, чтобы переключиться на синтезатор';
+    let label = App.t('Живой звук');
+    let title = App.t('Играют записи настоящих барабанов. Нажмите, чтобы переключиться на синтезатор');
     if (settings.source !== 'samples') {
       state = 'synth';
-      label = 'Синтез';
-      title = 'Сейчас барабаны синтезируются. Нажмите, чтобы включить записи настоящих барабанов';
+      label = App.t('Синтез');
+      title = App.t('Сейчас барабаны синтезируются. Нажмите, чтобы включить записи настоящих барабанов');
     } else if (p.failed) {
       state = 'fail';
-      label = 'Синтез';
-      title = 'Записи барабанов не загрузились — проверьте интернет. Пока играет синтезатор';
+      label = App.t('Синтез');
+      title = App.t('Записи барабанов не загрузились — проверьте интернет. Пока играет синтезатор');
     } else if (p.loaded < p.total) {
       state = 'loading';
-      label = 'Загрузка ' + Math.round((p.loaded / Math.max(1, p.total)) * 100) + '%';
-      title = 'Загружаются записи барабанов. Можно играть уже сейчас';
+      label = App.t('Загрузка ') + Math.round((p.loaded / Math.max(1, p.total)) * 100) + '%';
+      title = App.t('Загружаются записи барабанов. Можно играть уже сейчас');
     }
     chip.dataset.state = state;
     text.textContent = label;
@@ -915,7 +941,7 @@
     if (current && settings.source === 'samples' && currentKit()) App.drumkit.preload(currentKit(), current.drumList);
     if (current && useSamples(current.inst)) App.sampler.preload(current.inst.gm, current.preloadList);
     updateSource();
-    toast(settings.source === 'samples' ? 'Включены записи живых инструментов' : 'Включён синтезатор — работает и без интернета');
+    toast(settings.source === 'samples' ? App.t('Включены записи живых инструментов') : App.t('Включён синтезатор — работает и без интернета'));
   }
 
   /* ---------- Метроном ---------- */
@@ -947,10 +973,10 @@
       slider.value = m.bpm;
       save();
     };
-    const slider = h('input', { type: 'range', min: 30, max: 260, value: m.bpm, 'aria-label': 'Темп, ударов в минуту' });
+    const slider = h('input', { type: 'range', min: 30, max: 260, value: m.bpm, 'aria-label': App.t('Темп, ударов в минуту') });
     slider.addEventListener('input', () => setBpm(+slider.value));
     const taps = [];
-    const tap = h('button.btn', { type: 'button', title: 'Нажмите несколько раз в нужном темпе' }, 'Простучать');
+    const tap = h('button.btn', { type: 'button', title: App.t('Нажмите несколько раз в нужном темпе') }, App.t('Простучать'));
     tap.addEventListener('click', () => {
       const now = performance.now();
       if (taps.length && now - taps[taps.length - 1] > 2000) taps.length = 0;
@@ -961,7 +987,7 @@
     const startBtn = h('button.btn.primary', { type: 'button' });
     const label = () => {
       startBtn.textContent = '';
-      startBtn.append(App.icon(m.running ? 'stop' : 'play'), m.running ? 'Остановить' : 'Запустить');
+      startBtn.append(App.icon(m.running ? 'stop' : 'play'), m.running ? App.t('Остановить') : App.t('Запустить'));
     };
     label();
     startBtn.addEventListener('click', () => {
@@ -975,15 +1001,15 @@
       settings.beats = v;
       save();
       renderDots();
-    }, 'Долей в такте');
+    }, App.t('Долей в такте'));
 
-    popover = h('div.popover.metro', { role: 'dialog', 'aria-label': 'Метроном' },
-      h('div.metro-top', null, h('div', null, bpmOut, h('span.metro-unit', null, 'ударов в минуту')), dots),
+    popover = h('div.popover.metro', { role: 'dialog', 'aria-label': App.t('Метроном') },
+      h('div.metro-top', null, h('div', null, bpmOut, h('span.metro-unit', null, App.t('ударов в минуту'))), dots),
       h('div.metro-row', null,
-        h('button.icon-btn', { type: 'button', 'aria-label': 'Медленнее', onClick: () => setBpm(m.bpm - 1) }, '−'),
+        h('button.icon-btn', { type: 'button', 'aria-label': App.t('Медленнее'), onClick: () => setBpm(m.bpm - 1) }, '−'),
         slider,
-        h('button.icon-btn', { type: 'button', 'aria-label': 'Быстрее', onClick: () => setBpm(m.bpm + 1) }, '+')),
-      h('div.metro-row', null, h('span.metro-unit', null, 'Долей в такте'), beats.el),
+        h('button.icon-btn', { type: 'button', 'aria-label': App.t('Быстрее'), onClick: () => setBpm(m.bpm + 1) }, '+')),
+      h('div.metro-row', null, h('span.metro-unit', null, App.t('Долей в такте')), beats.el),
       h('div.metro-row', null, tap, startBtn));
     document.body.append(popover);
     const r = anchor.getBoundingClientRect();
@@ -1024,8 +1050,8 @@
     const rec = App.audio.recorder;
     b.rec.classList.toggle('active', rec.active);
     b.rec.setAttribute('aria-pressed', String(rec.active));
-    b.rec.querySelector('.rec-label').textContent = rec.active ? fmtTime((performance.now() - rec.startedAt) / 1000) : 'Запись';
-    b.rec.title = rec.active ? 'Остановить запись' : 'Записать, что вы играете';
+    b.rec.querySelector('.rec-label').textContent = rec.active ? fmtTime((performance.now() - rec.startedAt) / 1000) : App.t('Запись');
+    b.rec.title = rec.active ? App.t('Остановить запись') : App.t('Записать, что вы играете');
   }
 
   function updateBadge(b) {
@@ -1039,14 +1065,14 @@
   async function toggleRecord() {
     const rec = App.audio.recorder;
     if (!rec.supported()) {
-      toast('Этот браузер не умеет записывать звук. Попробуйте Chrome, Edge или Firefox');
+      toast(App.t('Этот браузер не умеет записывать звук. Попробуйте Chrome, Edge или Firefox'));
       return;
     }
     if (!rec.active) {
       rec.start();
       recTimer = setInterval(() => updateRecButton(), 250);
       updateRecButton();
-      toast('Идёт запись — играйте! Нажмите кнопку ещё раз, чтобы остановить');
+      toast(App.t('Идёт запись — играйте! Нажмите кнопку ещё раз, чтобы остановить'));
       return;
     }
     clearInterval(recTimer);
@@ -1054,13 +1080,13 @@
     updateRecButton();
     if (!take || take.duration < 0.4) return;
     const d = new Date();
-    take.title = (current ? current.inst.name : 'Запись') + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    take.title = (current ? current.inst.name : App.t('Запись')) + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     const p2 = (n) => String(n).padStart(2, '0');
     const stamp = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '-' + p2(d.getHours()) + '-' + p2(d.getMinutes());
     take.file = 'zvukoryad-' + (current ? current.inst.id : 'take') + '-' + stamp + '.' + take.ext;
     takes.unshift(take);
     updateBadge();
-    toast('Запись готова: ' + fmtTime(take.duration), { label: 'Послушать', run: openRecordings });
+    toast(App.t('Запись готова: ') + fmtTime(take.duration), { label: App.t('Послушать'), run: openRecordings });
   }
 
   function openRecordings() {
@@ -1068,11 +1094,11 @@
     const render = () => {
       list.textContent = '';
       if (!takes.length) {
-        list.append(h('p.empty', null, 'Записей пока нет. Нажмите «Запись» на панели, сыграйте что-нибудь и остановите — запись появится здесь.'));
+        list.append(h('p.empty', null, App.t('Записей пока нет. Нажмите «Запись» на панели, сыграйте что-нибудь и остановите — запись появится здесь.')));
         return;
       }
       takes.forEach((t) => {
-        const del = iconButton('trash', 'Удалить запись', () => {
+        const del = iconButton('trash', App.t('Удалить запись'), () => {
           takes.splice(takes.indexOf(t), 1);
           URL.revokeObjectURL(t.url);
           updateBadge();
@@ -1082,20 +1108,20 @@
           h('div.take-head', null, h('b', null, t.title), h('span.take-len', null, fmtTime(t.duration))),
           h('audio', { controls: true, src: t.url, preload: 'metadata' }),
           h('div.take-actions', null,
-            h('a.btn', { href: t.url, download: t.file }, App.icon('download'), 'Скачать'),
+            h('a.btn', { href: t.url, download: t.file }, App.icon('download'), App.t('Скачать')),
             del)));
       });
     };
     render();
-    sheet('Мои записи', h('div', null,
+    sheet(App.t('Мои записи'), h('div', null,
       list,
-      h('p.note', null, 'Записи хранятся, пока открыта страница. Чтобы сохранить запись насовсем, нажмите «Скачать».')));
+      h('p.note', null, App.t('Записи хранятся, пока открыта страница. Чтобы сохранить запись насовсем, нажмите «Скачать».'))));
   }
 
   /* ---------- Смена инструмента ---------- */
 
   function openSwitcher() {
-    const input = h('input.search-input', { type: 'search', placeholder: 'Найти инструмент', 'aria-label': 'Найти инструмент', autocomplete: 'off' });
+    const input = h('input.search-input', { type: 'search', placeholder: App.t('Найти инструмент'), 'aria-label': App.t('Найти инструмент'), autocomplete: 'off' });
     const list = h('div.switch-list');
     let dlg = null;
     const link = (i) => {
@@ -1110,7 +1136,7 @@
       list.textContent = '';
       if (words.length) {
         const found = App.instruments.filter((i) => matches(i, words));
-        if (!found.length) list.append(h('p.empty', null, 'Ничего не нашлось'));
+        if (!found.length) list.append(h('p.empty', null, App.t('Ничего не нашлось')));
         found.forEach((i) => list.append(link(i)));
         return;
       }
@@ -1118,7 +1144,7 @@
         list.append(h('h3', null, f.name));
         App.instruments.filter((i) => i.family === f.id).forEach((i) => list.append(link(i)));
       });
-      list.append(h('h3', null, 'Весь оркестр'));
+      list.append(h('h3', null, App.t('Весь оркестр')));
       App.instruments.filter((i) => i.family === 'gm').forEach((i) => list.append(link(i)));
     };
     input.addEventListener('input', render);
@@ -1132,7 +1158,7 @@
       }
     });
     render();
-    dlg = sheet('Инструменты', h('div.switcher', null, input, list));
+    dlg = sheet(App.t('Инструменты'), h('div.switcher', null, input, list));
     input.focus();
     const cur = list.querySelector('.current');
     if (cur) cur.scrollIntoView({ block: 'center' });
@@ -1141,41 +1167,41 @@
   /* ---------- Справка ---------- */
 
   const HOW = {
-    keys: ['Нажимайте на клавиши мышкой или пальцем. Если вести по клавишам не отпуская — получится глиссандо.', 'Чем ниже на клавише нажатие, тем громче звук.', 'Кнопки «Октава» сдвигают клавиатуру выше или ниже.'],
-    strings: ['Нажмите на лад — прозвучит нота на этой струне. Самая тонкая струна сверху, как в табулатуре.', 'Выберите аккорд кнопкой под грифом и проведите пальцем по струнам в правой части — это бой.', 'Кнопка аккорда сразу проигрывает его целиком.'],
-    bowed: ['Нажмите и держите место на грифе — смычок тянет ноту, пока вы держите.', 'Ведите пальцем вдоль струны — нота плавно сменится, как при игре легато.', 'Можно держать несколько струн сразу.'],
-    pads: ['Бейте по пэдам пальцами или мышкой — можно несколькими пальцами одновременно.', 'Удар ближе к центру пэда звучит громче.', 'Расположение пэдов совпадает с рядами клавиатуры компьютера.'],
-    kit: ['Бейте прямо по барабанам и тарелкам — можно несколькими пальцами сразу.', 'Удар по краю малого барабана — это удар по ободу, в середину райда — «колокол».', 'Хай-хэт можно открыть переключателем на панели или клавишей S. Педали внизу тоже нажимаются.', 'Переключатель «Звук» меняет набор: настоящая акустика, драм-машина TR-808 или LinnDrum из 80-х.'],
-    bars: ['Ударяйте по пластинам. Если провести по ним — получится глиссандо, как палочкой по ксилофону.', 'Верхний ряд — диезы и бемоли, нижний — основные ноты.'],
-    kalimba: ['Касайтесь язычков: самый длинный и низкий в центре, ноты расходятся влево и вправо.', 'Проведите по нескольким язычкам — получится перебор.'],
-    harp: ['Проведите пальцем или мышкой поперёк струн — они зазвучат по очереди, как настоящая арфа.', 'Можно щипать и отдельные струны.'],
-    circle: ['Касайтесь тон-полей ладонью или пальцем.', 'Можно играть несколькими пальцами сразу и проводить по полям.'],
-    xy: ['Зажмите поле и ведите: влево-вправо — высота, вверх-вниз — громкость.', 'Режимы «По нотам», «Мажор» и «Пентатоника» помогают попадать в ноты.', 'Можно играть несколькими пальцами сразу.'],
-    beat: ['Нажимайте клетки, чтобы поставить удар. Проведите по ряду, чтобы заполнить несколько клеток сразу.', 'Выберите готовый ритм в списке и меняйте его под себя.', 'Ритм сохраняется в этом браузере.'],
+    keys: [App.t('Нажимайте на клавиши мышкой или пальцем. Если вести по клавишам не отпуская — получится глиссандо.'), App.t('Чем ниже на клавише нажатие, тем громче звук.'), App.t('Кнопки «Октава» сдвигают клавиатуру выше или ниже.')],
+    strings: [App.t('Нажмите на лад — прозвучит нота на этой струне. Самая тонкая струна сверху, как в табулатуре.'), App.t('Выберите аккорд кнопкой под грифом и проведите пальцем по струнам в правой части — это бой.'), App.t('Кнопка аккорда сразу проигрывает его целиком.')],
+    bowed: [App.t('Нажмите и держите место на грифе — смычок тянет ноту, пока вы держите.'), App.t('Ведите пальцем вдоль струны — нота плавно сменится, как при игре легато.'), App.t('Можно держать несколько струн сразу.')],
+    pads: [App.t('Бейте по пэдам пальцами или мышкой — можно несколькими пальцами одновременно.'), App.t('Удар ближе к центру пэда звучит громче.'), App.t('Расположение пэдов совпадает с рядами клавиатуры компьютера.')],
+    kit: [App.t('Бейте прямо по барабанам и тарелкам — можно несколькими пальцами сразу.'), App.t('Удар по краю малого барабана — это удар по ободу, в середину райда — «колокол».'), App.t('Хай-хэт можно открыть переключателем на панели или клавишей S. Педали внизу тоже нажимаются.'), App.t('Переключатель «Звук» меняет набор: настоящая акустика, драм-машина TR-808 или LinnDrum из 80-х.')],
+    bars: [App.t('Ударяйте по пластинам. Если провести по ним — получится глиссандо, как палочкой по ксилофону.'), App.t('Верхний ряд — диезы и бемоли, нижний — основные ноты.')],
+    kalimba: [App.t('Касайтесь язычков: самый длинный и низкий в центре, ноты расходятся влево и вправо.'), App.t('Проведите по нескольким язычкам — получится перебор.')],
+    harp: [App.t('Проведите пальцем или мышкой поперёк струн — они зазвучат по очереди, как настоящая арфа.'), App.t('Можно щипать и отдельные струны.')],
+    circle: [App.t('Касайтесь тон-полей ладонью или пальцем.'), App.t('Можно играть несколькими пальцами сразу и проводить по полям.')],
+    xy: [App.t('Зажмите поле и ведите: влево-вправо — высота, вверх-вниз — громкость.'), App.t('Режимы «По нотам», «Мажор» и «Пентатоника» помогают попадать в ноты.'), App.t('Можно играть несколькими пальцами сразу.')],
+    beat: [App.t('Нажимайте клетки, чтобы поставить удар. Проведите по ряду, чтобы заполнить несколько клеток сразу.'), App.t('Выберите готовый ритм в списке и меняйте его под себя.'), App.t('Ритм сохраняется в этом браузере.')],
   };
 
   // Аккорды одной клавишей есть у всех клавишных, кроме литавр.
-  const CHORDS_TIP = 'Кнопка «Аккорды» на панели: цифры 1 … = или кнопки под клавиатурой играют целый аккорд одним нажатием, а буквами можно вести мелодию. Так хватает двух клавиш сразу — обычная клавиатура компьютера больше 2–4 клавиш одновременно часто не берёт.';
+  const CHORDS_TIP = App.t('Кнопка «Аккорды» на панели: цифры 1 … = или кнопки под клавиатурой играют целый аккорд одним нажатием, а буквами можно вести мелодию. Так хватает двух клавиш сразу — обычная клавиатура компьютера больше 2–4 клавиш одновременно часто не берёт.');
 
   function openHelp() {
     if (!current) return;
     const kind = current.layoutName === 'strings' && current.inst.bowed ? 'bowed' : current.layoutName;
     const how = HOW[kind].concat(kind === 'keys' && current.inst.family !== 'drums' ? [CHORDS_TIP] : []);
     const hints = [...current.hints.querySelectorAll('.hint:not(.tip)')].map((el) => el.cloneNode(true));
-    sheet('Как играть: ' + current.inst.name, h('div.help', null,
+    sheet(App.t('Как играть: ') + current.inst.name, h('div.help', null,
       h('ul', null, how.map((t) => h('li', null, t))),
-      hints.length ? h('h3', null, 'Клавиатура компьютера') : null,
+      hints.length ? h('h3', null, App.t('Клавиатура компьютера')) : null,
       hints.length ? h('div.help-keys', null, hints) : null,
-      hints.length ? h('p.note', null, 'Клавиши работают в любой раскладке — и в русской, и в английской.') : null,
-      current.layout.keyActions ? h('button.btn', { type: 'button', onClick: () => App.keybind.open() }, App.icon('keyboard'), 'Назначить свои клавиши') : null,
-      App.learn.can() ? h('h3', null, 'Разучить мелодию') : null,
-      App.learn.can() ? h('p', null, 'Нажмите «Разучить мелодию» и выберите песню. Нужная нота будет мигать — нажимайте её, и мелодия пойдёт дальше. Кнопка «Послушать, как звучит» сыграет песню, «Темп» замедлит её, а «Повтор куска» поможет выучить трудное место. Можно добавить свою мелодию из интернета (MIDI, ноты MusicXML, запись голоса) и играть на настоящем инструменте через микрофон.') : null,
-      h('h3', null, 'Настоящие инструменты'),
-      h('p', null, 'MIDI-клавиатура, электронные барабаны или MIDI-гитара подключаются по USB. Обычную гитару, скрипку, флейту или голос сайт слышит через микрофон.'),
-      h('button.btn', { type: 'button', onClick: () => App.live.open() }, App.icon('plug'), 'Подключить инструмент'),
-      h('h3', null, 'Играть вместе'),
-      h('p', null, 'Придумайте ник — друг подключится к вам по нему, и вы услышите друг друга. Регистрация не нужна.'),
-      h('button.btn', { type: 'button', onClick: () => App.online.open() }, App.icon('users'), 'Играть вместе')));
+      hints.length ? h('p.note', null, App.t('Клавиши работают в любой раскладке — и в русской, и в английской.')) : null,
+      current.layout.keyActions ? h('button.btn', { type: 'button', onClick: () => App.keybind.open() }, App.icon('keyboard'), App.t('Назначить свои клавиши')) : null,
+      App.learn.can() ? h('h3', null, App.t('Разучить мелодию')) : null,
+      App.learn.can() ? h('p', null, App.t('Нажмите «Разучить мелодию» и выберите песню. Нужная нота будет мигать — нажимайте её, и мелодия пойдёт дальше. Кнопка «Послушать, как звучит» сыграет песню, «Темп» замедлит её, а «Повтор куска» поможет выучить трудное место. Можно добавить свою мелодию из интернета (MIDI, ноты MusicXML, запись голоса) и играть на настоящем инструменте через микрофон.')) : null,
+      h('h3', null, App.t('Настоящие инструменты')),
+      h('p', null, App.t('MIDI-клавиатура, электронные барабаны или MIDI-гитара подключаются по USB. Обычную гитару, скрипку, флейту или голос сайт слышит через микрофон.')),
+      h('button.btn', { type: 'button', onClick: () => App.live.open() }, App.icon('plug'), App.t('Подключить инструмент')),
+      h('h3', null, App.t('Играть вместе')),
+      h('p', null, App.t('Придумайте ник — друг подключится к вам по нему, и вы услышите друг друга. Регистрация не нужна.')),
+      h('button.btn', { type: 'button', onClick: () => App.online.open() }, App.icon('users'), App.t('Играть вместе'))));
   }
 
   /* ---------- Настройки ---------- */
@@ -1186,66 +1212,70 @@
     };
 
     const content = h('div.settings', null,
+      h('div.field-row', null, h('span.field-label', null, App.t('Язык') + (App.i18n.lang === 'en' ? '' : ' / Language')),
+        App.ui.segmented(App.i18n.languages.map((l) => [l.id, l.name]), App.i18n.lang, (v) => {
+          if (v !== App.i18n.lang) switchLanguage(v);
+        }, App.t('Язык')).el),
       h('div.field-row', null,
-        App.ui.slider('Громкость', 0, 1, 0.01, settings.volume, (v) => {
+        App.ui.slider(App.t('Громкость'), 0, 1, 0.01, settings.volume, (v) => {
           settings.volume = v;
           App.audio.setVolume(v);
           save();
         }, (v) => Math.round(v * 100)).el),
       h('div.field-row', null,
-        App.ui.slider('Эхо зала', 0, 1, 0.01, settings.reverb, (v) => {
+        App.ui.slider(App.t('Эхо зала'), 0, 1, 0.01, settings.reverb, (v) => {
           settings.reverb = v;
           App.audio.setReverb(v);
           save();
         }, (v) => Math.round(v * 100)).el),
-      h('div.field-row', null, h('span.field-label', null, 'Подписи нот'),
-        App.ui.segmented([['ru', 'До Ре Ми'], ['latin', 'C D E'], ['none', 'Без подписей']], settings.labels, (v) => {
+      h('div.field-row', null, h('span.field-label', null, App.t('Подписи нот')),
+        App.ui.segmented([['ru', 'До Ре Ми'], ['solfege', 'Do Re Mi'], ['latin', 'C D E'], ['none', App.t('Без подписей')]], settings.labels, (v) => {
           settings.labels = v;
           save();
           refresh();
-        }, 'Подписи нот').el),
-      coarse ? null : h('div.field-row', null, h('span.field-label', null, 'Подсказки клавиш'),
-        App.ui.segmented([[true, 'Показывать'], [false, 'Скрыть']], settings.keyHints, (v) => {
+        }, App.t('Подписи нот')).el),
+      coarse ? null : h('div.field-row', null, h('span.field-label', null, App.t('Подсказки клавиш')),
+        App.ui.segmented([[true, App.t('Показывать')], [false, App.t('Скрыть')]], settings.keyHints, (v) => {
           settings.keyHints = v;
           save();
           refresh();
-        }, 'Подсказки клавиш').el),
-      h('div.field-row', null, h('span.field-label', null, 'Звук'),
-        App.ui.segmented([['samples', 'Живые записи'], ['synth', 'Синтезатор']], settings.source, (v) => {
+        }, App.t('Подсказки клавиш')).el),
+      h('div.field-row', null, h('span.field-label', null, App.t('Звук')),
+        App.ui.segmented([['samples', App.t('Живые записи')], ['synth', App.t('Синтезатор')]], settings.source, (v) => {
           if (v !== settings.source) toggleSource();
-        }, 'Источник звука').el,
-        h('p.note', null, 'Живые записи подгружаются из интернета. Синтезатор работает всегда, даже без сети.')),
-      h('div.field-row', null, h('span.field-label', null, 'Оформление'),
-        App.ui.segmented([['auto', 'Как в системе'], ['dark', 'Тёмное'], ['light', 'Светлое']], settings.theme, (v) => {
+        }, App.t('Источник звука')).el,
+        h('p.note', null, App.t('Живые записи подгружаются из интернета. Синтезатор работает всегда, даже без сети.'))),
+      h('div.field-row', null, h('span.field-label', null, App.t('Оформление')),
+        App.ui.segmented([['auto', App.t('Как в системе')], ['dark', App.t('Тёмное')], ['light', App.t('Светлое')]], settings.theme, (v) => {
           settings.theme = v;
           save();
           applyTheme();
-        }, 'Оформление').el),
-      h('div.field-row', null, h('span.field-label', null, 'Настоящие инструменты'),
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.live.open(); } }, App.icon('plug'), 'MIDI и микрофон'),
+        }, App.t('Оформление')).el),
+      h('div.field-row', null, h('span.field-label', null, App.t('Настоящие инструменты')),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.live.open(); } }, App.icon('plug'), App.t('MIDI и микрофон')),
         h('p.note', null, App.live.summary())),
-      h('div.field-row', null, h('span.field-label', null, 'Играть вместе'),
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.online.open(); } }, App.icon('users'), 'По нику, без регистрации'),
+      h('div.field-row', null, h('span.field-label', null, App.t('Играть вместе')),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.online.open(); } }, App.icon('users'), App.t('По нику, без регистрации')),
         h('p.note', null, App.online.summary())),
-      current && current.layout && current.layout.keyActions ? h('div.field-row', null, h('span.field-label', null, 'Клавиши'),
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.keybind.open(); } }, App.icon('keyboard'), 'Назначить свои клавиши'),
-        h('p.note', null, 'Для инструментов с раскладкой «' + App.layoutNames[current.layoutName] + '». Можно назначить и пэды MIDI-барабанов.')) : null,
+      current && current.layout && current.layout.keyActions ? h('div.field-row', null, h('span.field-label', null, App.t('Клавиши')),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); App.keybind.open(); } }, App.icon('keyboard'), App.t('Назначить свои клавиши')),
+        h('p.note', null, App.t('Для инструментов с раскладкой «') + App.layoutNames[current.layoutName] + App.t('». Можно назначить и пэды MIDI-барабанов.'))) : null,
       current ? h('div.field-row.narrow-only', null,
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openRecordings(); } }, App.icon('tape'), 'Мои записи'),
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openHelp(); } }, App.icon('help'), 'Как играть'),
-        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); toggleFullscreen(); } }, App.icon('fullscreen'), 'Во весь экран')) : null,
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openRecordings(); } }, App.icon('tape'), App.t('Мои записи')),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); openHelp(); } }, App.icon('help'), App.t('Как играть')),
+        h('button.btn', { type: 'button', onClick: () => { closeDialogs(); toggleFullscreen(); } }, App.icon('fullscreen'), App.t('Во весь экран'))) : null,
       h('div.field-row', null,
         h('button.btn.ghost', {
           type: 'button',
           onClick: () => {
-            if (!confirm('Сбросить настройки, избранное и сохранённые ритмы?')) return;
+            if (!confirm(App.t('Сбросить настройки, избранное и сохранённые ритмы?'))) return;
             try {
               localStorage.removeItem(STORE);
             } catch (e) { /* ignore */ }
             location.reload();
           },
-        }, 'Сбросить всё')));
-    sheet('Настройки', content);
+        }, App.t('Сбросить всё'))));
+    sheet(App.t('Настройки'), content);
   }
 
   function closeDialogs() {
@@ -1261,7 +1291,7 @@
       const badge = b.querySelector('.badge');
       badge.hidden = !s.count;
       badge.textContent = s.count;
-      const label = s.state === 'online' ? 'В сети как «' + s.nick + '»' + (s.count ? ' · вместе с вами: ' + s.count : '') : 'Играть вместе';
+      const label = s.state === 'online' ? App.t('В сети как «') + s.nick + '»' + (s.count ? App.t(' · вместе с вами: ') + s.count : '') : App.t('Играть вместе');
       b.title = label;
       b.setAttribute('aria-label', label);
     });
@@ -1278,7 +1308,7 @@
     }
     const el = d.documentElement;
     if (!el.requestFullscreen) {
-      toast('Этот браузер не умеет переходить во весь экран');
+      toast(App.t('Этот браузер не умеет переходить во весь экран'));
       return;
     }
     el.requestFullscreen().then(() => {

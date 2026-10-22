@@ -18,7 +18,7 @@
     ['G7', 7, 'dom7'], ['E', 4, 'maj'], ['E7', 4, 'dom7'], ['D', 2, 'maj'], ['A', 9, 'maj'], ['Hm', 11, 'min'],
   ];
   const INTERVALS = { maj: [0, 4, 7], min: [0, 3, 7], dom7: [0, 4, 7, 10] };
-  const KIND = { maj: 'мажор', min: 'минор', dom7: 'септаккорд' };
+  const KIND = { maj: App.t('мажор'), min: App.t('минор'), dom7: App.t('септаккорд') };
   const CHORD_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal'];
 
   App.layouts.keys = function (root, ctx) {
@@ -31,7 +31,7 @@
     const canChord = inst.family !== 'drums';
     let chordsOn = canChord && !!ctx.getState('chords', false);
 
-    const board = h('div.kb', { role: 'group', 'aria-label': 'Клавиатура' });
+    const board = h('div.kb', { role: 'group', 'aria-label': App.t('Клавиатура') });
     const nowNote = h('span.fall-note');
     const fallboard = h('div.kb-fallboard', { 'aria-hidden': 'true' },
       h('span.fall-name', null, inst.name), nowNote);
@@ -48,35 +48,35 @@
     }
     const presser = Object.assign({}, basePresser, {
       press(midi, vel) {
-        showNow(N.name(midi, ctx.labelMode() === 'latin' ? 'latin' : 'ru', true), N.color(midi));
+        showNow(N.name(midi, N.shown(ctx.labelMode()), true), N.color(midi));
         return basePresser.press(midi, vel);
       },
     });
     presser.external = (midi, on, vel) => {
-      if (on) nowNote.textContent = N.name(midi, ctx.labelMode() === 'latin' ? 'latin' : 'ru', true);
+      if (on) nowNote.textContent = N.name(midi, N.shown(ctx.labelMode()), true);
       if (on) nowNote.style.setProperty('--c', N.color(midi));
       basePresser.external(midi, on, vel);
     };
-    const octave = App.ui.stepper('Октава', (d) => shift(d));
+    const octave = App.ui.stepper(App.t('Октава'), (d) => shift(d));
     ctx.deck.append(octave.el);
     let pedal = null;
     if (inst.mode === 'sustain') {
-      pedal = App.ui.toggle('Педаль', false, (on) => ctx.setSustain(on), 'Педаль: ноты тянутся после отпускания (держите Пробел)');
+      pedal = App.ui.toggle(App.t('Педаль'), false, (on) => ctx.setSustain(on), App.t('Педаль: ноты тянутся после отпускания (держите Пробел)'));
       ctx.deck.append(pedal.el);
     }
 
     /* ---------- Аккорды одной клавишей ---------- */
 
-    const chordBar = h('div.chords', { role: 'group', 'aria-label': 'Аккорды', hidden: !chordsOn });
+    const chordBar = h('div.chords', { role: 'group', 'aria-label': App.t('Аккорды'), hidden: !chordsOn });
     const chordButtons = CHORDS.map(([name, rootPc, kind], i) => {
-      const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', dataset: { i }, title: N.name(rootPc, 'ru') + ' ' + KIND[kind] }, h('b', null, name));
+      const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', dataset: { i }, title: N.name(rootPc, null) + ' ' + KIND[kind] }, h('b', null, N.chordName(name)));
       chordBar.append(b);
       return b;
     });
     const chordHeld = CHORDS.map(() => 0); // аккорд могут держать сразу клавиша и палец
     if (canChord) {
-      const chordToggle = App.ui.toggle('Аккорды', chordsOn, (on) => setChords(on),
-        'Аккорд одной клавишей: цифры 1 … = или кнопки под клавиатурой, а буквами — мелодия');
+      const chordToggle = App.ui.toggle(App.t('Аккорды'), chordsOn, (on) => setChords(on),
+        App.t('Аккорд одной клавишей: цифры 1 … = или кнопки под клавиатурой, а буквами — мелодия'));
       ctx.deck.append(chordToggle.el);
       root.append(chordBar);
     }
@@ -125,11 +125,11 @@
     const K = App.keymap;
     function hints() {
       ctx.setHints([
-        chordsOn ? [K.span(CHORD_KEYS), 'аккорды'] : null,
-        [K.span(K.chromaticLow.slice(0, 12)), 'нижняя октава'],
-        [K.span(K.chromaticHigh.slice(0, 17)), chordsOn ? 'мелодия выше аккордов' : 'верхняя октава'],
-        [K.span(['ArrowLeft', 'ArrowRight']), 'сменить октаву'],
-        inst.mode === 'sustain' ? [K.label('Space'), 'педаль'] : null,
+        chordsOn ? [K.span(CHORD_KEYS), App.t('аккорды')] : null,
+        [K.span(K.chromaticLow.slice(0, 12)), App.t('нижняя октава')],
+        [K.span(K.chromaticHigh.slice(0, 17)), chordsOn ? App.t('мелодия выше аккордов') : App.t('верхняя октава')],
+        [K.span(['ArrowLeft', 'ArrowRight']), App.t('сменить октаву')],
+        inst.mode === 'sustain' ? [K.label('Space'), App.t('педаль')] : null,
       ]);
     }
     hints();
@@ -196,7 +196,7 @@
           dataset: { midi },
           style: { '--c': N.color(midi) },
           role: 'button',
-          'aria-label': N.name(midi, 'ru', true),
+          'aria-label': N.name(midi, null, true),
         },
         hint ? h('span.key-hint', null, hint) : null,
         black ? null : h('span.key-name', null, name));
@@ -212,7 +212,7 @@
         board.append(el);
         elByMidi.set(midi, el);
       });
-      octave.set(N.name(notes[0], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true) + ' – ' + N.name(notes[notes.length - 1], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true));
+      octave.set(N.name(notes[0], N.shown(ctx.labelMode()), true) + ' – ' + N.name(notes[notes.length - 1], N.shown(ctx.labelMode()), true));
       presser.refresh();
       nextMark.apply();
       ctx.preload(notes);
@@ -295,13 +295,13 @@
         chordKeys();
       },
       keyActions() {
-        const ctl = [{ code: 'ArrowLeft', label: 'Октава ниже' }, { code: 'ArrowRight', label: 'Октава выше' }];
-        if (pedal) ctl.push({ code: 'Space', label: 'Педаль (держать)' });
+        const ctl = [{ code: 'ArrowLeft', label: App.t('Октава ниже') }, { code: 'ArrowRight', label: App.t('Октава выше') }];
+        if (pedal) ctl.push({ code: 'Space', label: App.t('Педаль (держать)') });
         const notesGroups = App.keymap.chromaticActions(start, ctx.noteName);
-        if (!chordsOn) return notesGroups.concat([{ title: 'Управление', items: ctl }]);
-        const chordGroup = { title: 'Аккорды', items: CHORDS.map(([name, rootPc], i) => ({ code: CHORD_KEYS[i], label: 'Аккорд ' + name, color: N.color(rootPc) })) };
+        if (!chordsOn) return notesGroups.concat([{ title: App.t('Управление'), items: ctl }]);
+        const chordGroup = { title: App.t('Аккорды'), items: CHORDS.map(([name, rootPc], i) => ({ code: CHORD_KEYS[i], label: App.t('Аккорд ') + name, color: N.color(rootPc) })) };
         const melody = notesGroups.map((g) => Object.assign({}, g, { items: g.items.filter((it) => !CHORD_KEYS.includes(it.code)) })).filter((g) => g.items.length);
-        return [chordGroup].concat(melody, [{ title: 'Управление', items: ctl }]);
+        return [chordGroup].concat(melody, [{ title: App.t('Управление'), items: ctl }]);
       },
       highlightNext: (m) => nextMark.set(m),
       playable: () => notes.slice(),

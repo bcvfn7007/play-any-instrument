@@ -163,7 +163,7 @@
     nick = cleanNick(nick);
     const id = slug(nick);
     if (id.length < 2) {
-      setState('error', 'Ник слишком короткий: нужны хотя бы две буквы или цифры.');
+      setState('error', App.t('Ник слишком короткий: нужны хотя бы две буквы или цифры.'));
       return false;
     }
     if (peer && myId === PREFIX + id && state === 'online') return true;
@@ -172,7 +172,7 @@
     if (!releaseLock && !(await takeLock(id))) {
       // При открытии страницы молчим: в сети уже другая вкладка — пусть играет она.
       if (retries === 3) setState('off');
-      else setState('error', 'Под ником «' + nick + '» сайт уже в сети в другой вкладке. Играйте там — или придумайте здесь другой ник.');
+      else setState('error', App.t('Под ником «') + nick + App.t('» сайт уже в сети в другой вкладке. Играйте там — или придумайте здесь другой ник.'));
       return false;
     }
     myName = nick;
@@ -184,7 +184,7 @@
     try {
       Peer = await loadLib();
     } catch (e) {
-      setState('error', 'Не загрузился модуль связи — проверьте интернет.');
+      setState('error', App.t('Не загрузился модуль связи — проверьте интернет.'));
       return false;
     }
     return new Promise((resolve) => {
@@ -229,21 +229,21 @@
             retryTimer = setTimeout(() => goOnline(nick, retries - 1).then(finish), 4000);
             return;
           }
-          setState('error', 'Ник «' + nick + '» уже занят. Придумайте другой — или закройте сайт в другой вкладке.');
+          setState('error', App.t('Ник «') + nick + App.t('» уже занят. Придумайте другой — или закройте сайт в другой вкладке.'));
           finish(false);
           return;
         }
         if (type === 'browser-incompatible') {
           p.destroy();
           peer = null;
-          setState('error', 'Этот браузер не умеет играть вместе. Подойдут Chrome, Edge, Firefox или Safari.');
+          setState('error', App.t('Этот браузер не умеет играть вместе. Подойдут Chrome, Edge, Firefox или Safari.'));
           finish(false);
           return;
         }
         if (state === 'connecting' && ['network', 'server-error', 'socket-error', 'socket-closed', 'invalid-id', 'ssl-unavailable'].includes(type)) {
           p.destroy();
           peer = null;
-          setState('error', 'Нет связи с сервером — проверьте интернет и попробуйте ещё раз.');
+          setState('error', App.t('Нет связи с сервером — проверьте интернет и попробуйте ещё раз.'));
           finish(false);
         }
       });
@@ -310,22 +310,22 @@
   async function dial(nick) {
     nick = cleanNick(nick);
     const id = PREFIX + slug(nick);
-    if (slug(nick).length < 2) return say('Напишите ник друга — хотя бы две буквы или цифры.');
+    if (slug(nick).length < 2) return say(App.t('Напишите ник друга — хотя бы две буквы или цифры.'));
     if (state !== 'online') {
       const mine = view ? view.nick.value : settings.net.nick;
       if (!cleanNick(mine)) {
         if (view) view.nick.focus();
-        return say('Сначала придумайте ник себе — по нему друг увидит, кто к нему стучится.');
+        return say(App.t('Сначала придумайте ник себе — по нему друг увидит, кто к нему стучится.'));
       }
       if (!(await goOnline(mine, 0))) return;
     }
-    if (id === myId) return say('Это ваш собственный ник. Напишите ник друга.');
+    if (id === myId) return say(App.t('Это ваш собственный ник. Напишите ник друга.'));
     const old = links.get(id);
-    if (old && old.ok) return say('Вы уже играете вместе с «' + old.name + '».');
+    if (old && old.ok) return say(App.t('Вы уже играете вместе с «') + old.name + '».');
     if (old) closeLink(old, true);
-    if (members.size >= MAX_ROOM - 1) return say('В комнате уже ' + MAX_ROOM + ' человек — больше не поместится.');
+    if (members.size >= MAX_ROOM - 1) return say(App.t('В комнате уже ') + MAX_ROOM + App.t(' человек — больше не поместится.'));
     const link = connect(id, false);
-    if (!link) return say('Не получилось начать соединение. Попробуйте ещё раз.');
+    if (!link) return say(App.t('Не получилось начать соединение. Попробуйте ещё раз.'));
     link.name = nick;
     say('');
     changed();
@@ -336,10 +336,10 @@
     closeLink(link, true);
     if (link.room) return; // соединение «внутри комнаты» — без шума, сообщения и так идут через соседей
     const who = '«' + link.name + '»';
-    say(why === 'missing' ? who + ' сейчас не в сети. Проверьте ник — или попросите друга открыть «Играть вместе» и выйти в сеть.'
-      : why === 'no' ? 'Запрос отклонили: ' + who + ' сейчас не может играть.'
-        : why === 'full' ? 'У ' + who + ' уже полная комната.'
-          : 'Не получилось соединиться с ' + who + ' — возможно, мешает сеть. Попробуйте ещё раз.', true);
+    say(why === 'missing' ? who + App.t(' сейчас не в сети. Проверьте ник — или попросите друга открыть «Играть вместе» и выйти в сеть.')
+      : why === 'no' ? App.t('Запрос отклонили: ') + who + App.t(' сейчас не может играть.')
+        : why === 'full' ? App.t('У ') + who + App.t(' уже полная комната.')
+          : App.t('Не получилось соединиться с ') + who + App.t(' — возможно, мешает сеть. Попробуйте ещё раз.'), true);
   }
 
   function incoming(conn) {
@@ -386,7 +386,7 @@
     if (links.get(link.id) !== link) return;
     link.ok = true;
     send(link, { t: 'ok', name: myName });
-    if (!link.room && !members.has(link.id)) shell.toast('Вы играете вместе с «' + link.name + '»');
+    if (!link.room && !members.has(link.id)) shell.toast(App.t('Вы играете вместе с «') + link.name + '»');
     joined(link);
   }
 
@@ -445,12 +445,12 @@
 
   function ask(link) {
     if (asks.has(link.id)) return;
-    const el = h('div.net-ask', { role: 'alertdialog', 'aria-label': 'Запрос: играть вместе' },
+    const el = h('div.net-ask', { role: 'alertdialog', 'aria-label': App.t('Запрос: играть вместе') },
       h('div.net-ask-text', null, App.icon('users'),
-        h('span', null, h('b', null, link.name), ' хочет играть вместе с вами')),
+        h('span', null, h('b', null, link.name), App.t(' хочет играть вместе с вами'))),
       h('div.row', null,
-        h('button.btn.primary', { type: 'button', onClick: () => accept(link) }, 'Пустить'),
-        h('button.btn', { type: 'button', onClick: () => reject(link) }, 'Не сейчас')));
+        h('button.btn.primary', { type: 'button', onClick: () => accept(link) }, App.t('Пустить')),
+        h('button.btn', { type: 'button', onClick: () => reject(link) }, App.t('Не сейчас'))));
     asks.set(link.id, el);
     rehome();
     link.timer = setTimeout(() => reject(link), 60000);
@@ -511,7 +511,7 @@
       link.ok = true;
       link.name = cleanNick(msg.name) || link.name;
       if (!link.room) {
-        shell.toast('Готово: вы играете вместе с «' + link.name + '»');
+        shell.toast(App.t('Готово: вы играете вместе с «') + link.name + '»');
         say('');
       }
       joined(link);
@@ -605,7 +605,7 @@
     m.last = Date.now();
     members.set(o, m);
     if (isNew) {
-      if (!links.has(o)) shell.toast('«' + m.name + '» тоже играет с вами');
+      if (!links.has(o)) shell.toast('«' + m.name + App.t('» тоже играет с вами'));
       // Соединяемся с каждым напрямую: быстрее, и живой звук дойдёт до всех. Звонит тот, чей адрес «меньше».
       if (!links.has(o) && myId < o) connect(o, true);
     }
@@ -619,7 +619,7 @@
     stopVoices(o);
     stopHeard(o);
     if (!quiet) {
-      shell.toast('«' + m.name + '» больше не играет с вами');
+      shell.toast('«' + m.name + App.t('» больше не играет с вами'));
       changed();
     }
   }
@@ -748,7 +748,7 @@
       micStream = await App.live.micStream();
     } catch (e) {
       micStream = null;
-      shell.toast('Без микрофона живой звук не передать');
+      shell.toast(App.t('Без микрофона живой звук не передать'));
       changed();
       return;
     }
@@ -833,7 +833,7 @@
     chat.push({ name, text, mine });
     if (chat.length > 60) chat.shift();
     if (view) renderChat();
-    else if (!mine) shell.toast(name + ': ' + text, { label: 'Ответить', run: () => open() });
+    else if (!mine) shell.toast(name + ': ' + text, { label: App.t('Ответить'), run: () => open() });
   }
 
   function sendChat(text) {
@@ -847,9 +847,9 @@
   /* =================== Что видно на экране =================== */
 
   function summary() {
-    if (state !== 'online') return 'Придумайте ник — друг подключится к вам по нему. Регистрация не нужна.';
+    if (state !== 'online') return App.t('Придумайте ник — друг подключится к вам по нему. Регистрация не нужна.');
     const names = [...members.values()].map((m) => m.name);
-    return 'Вы в сети как «' + myName + '»' + (names.length ? '. Вместе с вами: ' + names.join(', ') : '');
+    return App.t('Вы в сети как «') + myName + '»' + (names.length ? App.t('. Вместе с вами: ') + names.join(', ') : '');
   }
 
   function changed() {
@@ -866,16 +866,16 @@
     const waiting = [...links.values()].filter((l) => l.out && !l.ok && !l.room);
     bandEl.hidden = state !== 'online' || (!members.size && !waiting.length);
     if (bandEl.hidden) return;
-    bandEl.append(h('span.band-label', null, App.icon('users'), 'Вместе'));
+    bandEl.append(h('span.band-label', null, App.icon('users'), App.t('Вместе')));
     members.forEach((m) => {
-      m.el = h('button.band-chip', { type: 'button', title: m.name + (m.inst ? ' — ' + m.inst.name : ' выбирает инструмент'), onClick: () => open() },
+      m.el = h('button.band-chip', { type: 'button', title: m.name + (m.inst ? ' — ' + m.inst.name : App.t(' выбирает инструмент')), onClick: () => open() },
         h('span.band-icon', { 'aria-hidden': 'true' }, m.inst ? m.inst.icon : '🎵'),
         h('span.band-name', null, m.name),
         m.inst ? h('span.band-inst', null, m.inst.name) : null,
         m.mic ? App.icon('mic') : null);
       bandEl.append(m.el);
     });
-    waiting.forEach((l) => bandEl.append(h('span.band-wait', null, 'Ждём, когда «' + l.name + '» пустит…')));
+    waiting.forEach((l) => bandEl.append(h('span.band-wait', null, App.t('Ждём, когда «') + l.name + App.t('» пустит…'))));
   }
 
   function flash(o, midi) {
@@ -899,9 +899,9 @@
 
   function open(opts) {
     shell.closeDialogs();
-    const nick = h('input.net-input', { type: 'text', maxlength: 24, placeholder: 'Например, Вася', autocomplete: 'nickname', spellcheck: 'false', 'aria-label': 'Ваш ник' });
+    const nick = h('input.net-input', { type: 'text', maxlength: 24, placeholder: App.t('Например, Вася'), autocomplete: 'nickname', spellcheck: 'false', 'aria-label': App.t('Ваш ник') });
     nick.value = settings.net.nick || '';
-    const friend = h('input.net-input', { type: 'text', maxlength: 24, placeholder: 'Ник друга', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Ник друга' });
+    const friend = h('input.net-input', { type: 'text', maxlength: 24, placeholder: App.t('Ник друга'), autocomplete: 'off', spellcheck: 'false', 'aria-label': App.t('Ник друга') });
     friend.value = (opts && opts.friend) || '';
     const goBtn = h('button.btn.primary', { type: 'button' });
     goBtn.addEventListener('click', () => {
@@ -909,45 +909,45 @@
       else goOnline(nick.value, 0);
     });
     nick.addEventListener('keydown', (e) => e.key === 'Enter' && state !== 'online' && goOnline(nick.value, 0));
-    const dialBtn = h('button.btn', { type: 'button', onClick: () => dial(friend.value) }, App.icon('link'), 'Подключиться');
+    const dialBtn = h('button.btn', { type: 'button', onClick: () => dial(friend.value) }, App.icon('link'), App.t('Подключиться'));
     friend.addEventListener('keydown', (e) => e.key === 'Enter' && dial(friend.value));
     const msg = h('p.net-msg', { hidden: true, role: 'status' });
 
     const meCard = h('div.net-me');
     const people = h('div.net-people');
     const chatList = h('div.net-chat-list', { 'aria-live': 'polite' });
-    const chatInput = h('input.net-input', { type: 'text', maxlength: 300, placeholder: 'Написать всем…', 'aria-label': 'Сообщение в чат' });
+    const chatInput = h('input.net-input', { type: 'text', maxlength: 300, placeholder: App.t('Написать всем…'), 'aria-label': App.t('Сообщение в чат') });
     const chatSend = () => sendChat(chatInput.value) && (chatInput.value = '');
     chatInput.addEventListener('keydown', (e) => e.key === 'Enter' && chatSend());
-    const chatBox = h('section.net-sec.net-chat', null, h('h3', null, 'Чат'), chatList,
-      h('div.net-line', null, chatInput, h('button.icon-btn', { type: 'button', 'aria-label': 'Отправить', title: 'Отправить', onClick: chatSend }, App.icon('send'))));
-    const vol = App.ui.slider('Громкость друзей', 0, 1.5, 0.01, settings.net.volume, setVolume, (v) => Math.round(v * 100));
-    const micToggle = App.ui.segmented([[false, 'Нет'], [true, 'Да, передавать']], !!micStream, (v) => shareMic(v), 'Передавать живой звук');
+    const chatBox = h('section.net-sec.net-chat', null, h('h3', null, App.t('Чат')), chatList,
+      h('div.net-line', null, chatInput, h('button.icon-btn', { type: 'button', 'aria-label': App.t('Отправить'), title: App.t('Отправить'), onClick: chatSend }, App.icon('send'))));
+    const vol = App.ui.slider(App.t('Громкость друзей'), 0, 1.5, 0.01, settings.net.volume, setVolume, (v) => Math.round(v * 100));
+    const micToggle = App.ui.segmented([[false, App.t('Нет')], [true, App.t('Да, передавать')]], !!micStream, (v) => shareMic(v), App.t('Передавать живой звук'));
     const together = h('section.net-sec', null,
       h('div.field-row', null, vol.el),
-      h('div.net-field', null, h('span.field-label', null, 'Передавать живой звук микрофона'), micToggle.el,
-        h('p.note', null, 'Друзья услышат вашу настоящую гитару или голос. Наденьте наушники, чтобы не было эха.')));
+      h('div.net-field', null, h('span.field-label', null, App.t('Передавать живой звук микрофона')), micToggle.el,
+        h('p.note', null, App.t('Друзья услышат вашу настоящую гитару или голос. Наденьте наушники, чтобы не было эха.'))));
 
     const body = h('div.net', null,
-      h('p.note.net-intro', null, 'Без регистрации: придумайте ник, и друг подключится к вам по нему. Вы услышите друг друга — каждый играет на своём инструменте.'),
+      h('p.note.net-intro', null, App.t('Без регистрации: придумайте ник, и друг подключится к вам по нему. Вы услышите друг друга — каждый играет на своём инструменте.')),
       h('section.net-sec', null,
-        h('h3', null, 'Ваш ник'),
+        h('h3', null, App.t('Ваш ник')),
         h('div.net-line', null, nick, goBtn),
         meCard),
       h('section.net-sec', null,
-        h('h3', null, 'Подключиться к другу'),
+        h('h3', null, App.t('Подключиться к другу')),
         h('div.net-line', null, friend, dialBtn),
-        h('p.note', null, 'Друг должен быть в сети. Он увидит запрос и нажмёт «Пустить».')),
+        h('p.note', null, App.t('Друг должен быть в сети. Он увидит запрос и нажмёт «Пустить».'))),
       msg,
-      h('section.net-sec', null, h('h3', null, 'Вместе с вами'), people),
+      h('section.net-sec', null, h('h3', null, App.t('Вместе с вами')), people),
       together,
       chatBox,
-      h('p.note.net-small', null, 'Звук идёт напрямую между браузерами. Сервер PeerJS только помогает найти друг друга по нику.'));
+      h('p.note.net-small', null, App.t('Звук идёт напрямую между браузерами. Сервер PeerJS только помогает найти друг друга по нику.')));
 
     view = { nick, friend, goBtn, dialBtn, msg, meCard, people, chatList, chatBox, together, micToggle };
     renderView();
     renderChat();
-    shell.sheet('Играть вместе', body, { onClose: () => (view = null) });
+    shell.sheet(App.t('Играть вместе'), body, { onClose: () => (view = null) });
     if (friend.value && !nick.value) nick.focus();
     else if (!nick.value) nick.focus();
   }
@@ -956,7 +956,7 @@
     const v = view;
     const on = state === 'online';
     v.goBtn.textContent = '';
-    v.goBtn.append(App.icon(on ? 'close' : 'signal'), on ? 'Выйти из сети' : state === 'connecting' ? 'Подключаемся…' : 'Выйти в сеть');
+    v.goBtn.append(App.icon(on ? 'close' : 'signal'), on ? App.t('Выйти из сети') : state === 'connecting' ? App.t('Подключаемся…') : App.t('Выйти в сеть'));
     v.goBtn.classList.toggle('primary', !on);
     v.nick.disabled = on || state === 'connecting';
 
@@ -965,37 +965,37 @@
     if (on) {
       const link = shareLink();
       v.meCard.append(
-        h('p.net-status', null, h('i.net-dot'), 'Вы в сети как ', h('b', null, myName)),
-        h('p.note', null, 'Скажите другу ваш ник — «' + myName + '»' + (slug(myName) !== myName.toLowerCase() ? ' (можно и латиницей: ' + slug(myName) + ')' : '') + '. Или отправьте ссылку:'),
+        h('p.net-status', null, h('i.net-dot'), App.t('Вы в сети как '), h('b', null, myName)),
+        h('p.note', null, App.t('Скажите другу ваш ник — «') + myName + '»' + (slug(myName) !== myName.toLowerCase() ? App.t(' (можно и латиницей: ') + slug(myName) + ')' : '') + App.t('. Или отправьте ссылку:')),
         link ? h('div.net-line', null,
-          h('input.net-input.net-url', { type: 'text', readonly: true, value: link, 'aria-label': 'Ссылка-приглашение', onFocus: (e) => e.target.select() }),
-          h('button.btn', { type: 'button', onClick: () => copy(link) }, 'Скопировать')) : null);
+          h('input.net-input.net-url', { type: 'text', readonly: true, value: link, 'aria-label': App.t('Ссылка-приглашение'), onFocus: (e) => e.target.select() }),
+          h('button.btn', { type: 'button', onClick: () => copy(link) }, App.t('Скопировать'))) : null);
     } else if (state === 'connecting') {
-      v.meCard.append(h('p.net-status', null, h('i.net-dot'), 'Выходим в сеть…'));
+      v.meCard.append(h('p.net-status', null, h('i.net-dot'), App.t('Выходим в сеть…')));
     } else if (state === 'error') {
       v.meCard.append(h('p.net-status.bad', null, problem));
     } else {
-      v.meCard.append(h('p.note', null, 'Друзья подключатся к вам по этому нику. Он запомнится в этом браузере.'));
+      v.meCard.append(h('p.note', null, App.t('Друзья подключатся к вам по этому нику. Он запомнится в этом браузере.')));
     }
 
     v.people.textContent = '';
     const waiting = [...links.values()].filter((l) => !l.ok && !l.room);
     if (!members.size && !waiting.length) {
-      v.people.append(h('p.note', null, on ? 'Пока никого. Подключитесь к другу по нику или дождитесь, когда он подключится к вам.' : 'Выйдите в сеть, чтобы играть вместе.'));
+      v.people.append(h('p.note', null, on ? App.t('Пока никого. Подключитесь к другу по нику или дождитесь, когда он подключится к вам.') : App.t('Выйдите в сеть, чтобы играть вместе.')));
     }
     members.forEach((m, id) => {
       const l = links.get(id);
       v.people.append(h('div.net-person', null,
         h('span.band-icon', { 'aria-hidden': 'true' }, m.inst ? m.inst.icon : '🎵'),
-        h('span.net-person-text', null, h('b', null, m.name), h('small', null, (m.inst ? m.inst.name : 'выбирает инструмент') + (m.mic ? ' · живой звук' : ''))),
-        l && l.ok && !l.room ? h('button.btn.ghost', { type: 'button', onClick: () => closeLink(l) }, 'Отключить') : null));
+        h('span.net-person-text', null, h('b', null, m.name), h('small', null, (m.inst ? m.inst.name : App.t('выбирает инструмент')) + (m.mic ? App.t(' · живой звук') : ''))),
+        l && l.ok && !l.room ? h('button.btn.ghost', { type: 'button', onClick: () => closeLink(l) }, App.t('Отключить')) : null));
     });
     waiting.forEach((l) => {
       v.people.append(h('div.net-person.wait', null,
         h('span.band-icon', { 'aria-hidden': 'true' }, '⏳'),
-        h('span.net-person-text', null, h('b', null, l.name), h('small', null, l.out ? 'ждём, когда пустит…' : 'хочет подключиться')),
-        h('button.btn.ghost', { type: 'button', onClick: () => (l.out ? closeLink(l) : reject(l)) }, l.out ? 'Отменить' : 'Не пускать'),
-        l.out ? null : h('button.btn.primary', { type: 'button', onClick: () => accept(l) }, 'Пустить')));
+        h('span.net-person-text', null, h('b', null, l.name), h('small', null, l.out ? App.t('ждём, когда пустит…') : App.t('хочет подключиться'))),
+        h('button.btn.ghost', { type: 'button', onClick: () => (l.out ? closeLink(l) : reject(l)) }, l.out ? App.t('Отменить') : App.t('Не пускать')),
+        l.out ? null : h('button.btn.primary', { type: 'button', onClick: () => accept(l) }, App.t('Пустить'))));
     });
 
     const anyone = active();
@@ -1008,7 +1008,7 @@
     if (!view) return;
     const list = view.chatList;
     list.textContent = '';
-    if (!chat.length) list.append(h('p.note', null, 'Здесь можно договориться, что сыграть.'));
+    if (!chat.length) list.append(h('p.note', null, App.t('Здесь можно договориться, что сыграть.')));
     chat.forEach((c) => list.append(h('p.net-chat-line' + (c.mine ? '.mine' : ''), null, h('b', null, c.name + ': '), c.text)));
     list.scrollTop = list.scrollHeight;
   }
@@ -1021,8 +1021,8 @@
   }
 
   function copy(text) {
-    const done = () => shell.toast('Ссылка скопирована — отправьте её другу');
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => shell.toast('Выделите ссылку и скопируйте её'));
-    else shell.toast('Выделите ссылку и скопируйте её');
+    const done = () => shell.toast(App.t('Ссылка скопирована — отправьте её другу'));
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => shell.toast(App.t('Выделите ссылку и скопируйте её')));
+    else shell.toast(App.t('Выделите ссылку и скопируйте её'));
   }
 })();

@@ -39,7 +39,7 @@
         const req = fn(tx.objectStore(STORE));
         tx.oncomplete = () => resolve(req && req.result);
         tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Не удалось сохранить'));
+        tx.onabort = () => reject(tx.error || new Error(App.t('Не удалось сохранить')));
       });
     });
   }

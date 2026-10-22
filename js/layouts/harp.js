@@ -16,7 +16,7 @@
     const voices = [];
     const nextMark = App.nextMarker((m) => els[midis.indexOf(m)]);
 
-    const frame = h('div.harp.' + style, { role: 'group', 'aria-label': 'Струны' });
+    const frame = h('div.harp.' + style, { role: 'group', 'aria-label': App.t('Струны') });
     const field = h('div.harp-strings');
     frame.append(field);
     root.append(frame);
@@ -29,7 +29,7 @@
     };
     let octave = null;
     if (!inst.count) {
-      octave = App.ui.stepper('Октава', (d) => {
+      octave = App.ui.stepper(App.t('Октава'), (d) => {
         rootNote = clampRoot(rootNote + 12 * d);
         ctx.setState('root', rootNote);
         render();
@@ -74,7 +74,7 @@
         const el = h('div.hstring' + (mark ? '.' + mark : ''), {
           dataset: { i },
           style: { '--c': N.color(midi), '--thick': (2.8 - t * 1.6).toFixed(2) + 'px', '--len': (style === 'gusli' ? 100 - t * 48 : style === 'harp' ? 100 - t * 55 : 100) + '%' },
-          'aria-label': N.name(midi, 'ru', true),
+          'aria-label': N.name(midi, null, true),
         },
         h('span.hstring-line'),
         h('span.hstring-name', null, ctx.label(midi, pc === 0)),
@@ -82,7 +82,7 @@
         field.append(el);
         els.push(el);
       }
-      if (octave) octave.set(N.name(midis[0], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true) + ' – ' + N.name(midis[midis.length - 1], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true));
+      if (octave) octave.set(N.name(midis[0], N.shown(ctx.labelMode()), true) + ' – ' + N.name(midis[midis.length - 1], N.shown(ctx.labelMode()), true));
       nextMark.apply();
       ctx.preload(midis);
       if (inst.voice) App.synth.warm(inst.voice, midis, inst.voiceOpts);
@@ -111,10 +111,10 @@
     const held = new Set();
     const row = (r) => App.keymap.span(App.keymap.diatonicRows[r].slice(0, 7));
     ctx.setHints([
-      [row(0), 'нижние струны'],
-      [row(1), 'средние'],
-      [row(2), 'верхние'],
-      [null, 'проведите по струнам пальцем или мышью'],
+      [row(0), App.t('нижние струны')],
+      [row(1), App.t('средние')],
+      [row(2), App.t('верхние')],
+      [null, App.t('проведите по струнам пальцем или мышью')],
     ]);
 
     const ro = new ResizeObserver(measure);
@@ -205,7 +205,7 @@
         const el = h('div.field' + (f.ding ? '.ding' : ''), {
           dataset: { midi: f.midi },
           role: 'button',
-          'aria-label': N.name(f.midi, 'ru', true),
+          'aria-label': N.name(f.midi, null, true),
           style: { left: f.x + '%', top: f.y + '%', width: f.size + '%', '--c': N.color(f.midi) },
         },
         h('span.field-name', null, ctx.label(f.midi, true)),
@@ -239,15 +239,15 @@
 
     const K = App.keymap;
     ctx.setHints(steel
-      ? [[K.span(K.chromaticLow.slice(0, 12)), 'внешнее кольцо'], [K.span(K.chromaticHigh.slice(0, 12)), 'внутреннее кольцо'], [null, 'ноты внешнего кольца идут по кругу квинт']]
-      : [[HAND_KEYS.slice(0, sorted.length).map(K.label).filter(Boolean).join(' '), 'от низкой ноты к высокой'], [K.span(DIGITS.slice(0, sorted.length)), 'то же самое'], [null, 'в центре — самая низкая нота, «динг»']]);
+      ? [[K.span(K.chromaticLow.slice(0, 12)), App.t('внешнее кольцо')], [K.span(K.chromaticHigh.slice(0, 12)), App.t('внутреннее кольцо')], [null, App.t('ноты внешнего кольца идут по кругу квинт')]]
+      : [[HAND_KEYS.slice(0, sorted.length).map(K.label).filter(Boolean).join(' '), App.t('от низкой ноты к высокой')], [K.span(DIGITS.slice(0, sorted.length)), App.t('то же самое')], [null, App.t('в центре — самая низкая нота, «динг»')]]);
 
     function keyActions() {
       if (steel) return K.chromaticActions(60, ctx.noteName, (m) => elByMidi.has(m));
       const item = (code, i) => sorted[i] && { code, label: ctx.noteName(sorted[i].midi), color: App.notes.color(sorted[i].midi) };
       return [
-        { title: 'Буквы', items: HAND_KEYS.map(item).filter(Boolean) },
-        { title: 'Цифры', items: DIGITS.map(item).filter(Boolean) },
+        { title: App.t('Буквы'), items: HAND_KEYS.map(item).filter(Boolean) },
+        { title: App.t('Цифры'), items: DIGITS.map(item).filter(Boolean) },
       ];
     }
 

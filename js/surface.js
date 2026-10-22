@@ -263,9 +263,9 @@
       const value = h('span.stepper-value');
       const el = h('div.stepper', { role: 'group', 'aria-label': title || label },
         h('span.stepper-label', null, label),
-        h('button.icon-btn', { type: 'button', 'aria-label': 'Ниже', title: 'Ниже (←)', onClick: () => onStep(-1) }, svg('chevron-left')),
+        h('button.icon-btn', { type: 'button', 'aria-label': App.t('Ниже'), title: App.t('Ниже (←)'), onClick: () => onStep(-1) }, svg('chevron-left')),
         value,
-        h('button.icon-btn', { type: 'button', 'aria-label': 'Выше', title: 'Выше (→)', onClick: () => onStep(1) }, svg('chevron-right')));
+        h('button.icon-btn', { type: 'button', 'aria-label': App.t('Выше'), title: App.t('Выше (→)'), onClick: () => onStep(1) }, svg('chevron-right')));
       return { el, set: (t) => (value.textContent = t) };
     },
     toggle(label, initial, onChange, title) {

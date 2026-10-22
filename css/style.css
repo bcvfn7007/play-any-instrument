@@ -284,6 +284,19 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
+.lang-select {
+  height: 36px;
+  padding: 0 10px;
+  margin-right: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .select {
   padding: 7px 10px;
   border: 1px solid var(--line-strong);
@@ -512,6 +525,9 @@ kbd {
   min-width: 0;
   font-weight: 650;
   line-height: 1.25;
+  /* Длинные слова («Streichorchester») переносим по слогам, а не выпускаем за плитку. */
+  hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .tile-meta {

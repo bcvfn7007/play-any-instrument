@@ -4,6 +4,9 @@
 
   const LATIN = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const RU = ['До', 'До♯', 'Ре', 'Ре♯', 'Ми', 'Фа', 'Фа♯', 'Соль', 'Соль♯', 'Ля', 'Ля♯', 'Си'];
+  const SOLFEGE = ['Do', 'Do♯', 'Re', 'Re♯', 'Mi', 'Fa', 'Fa♯', 'Sol', 'Sol♯', 'La', 'La♯', 'Si'];
+  // По-немецки «си» — это H (а B у них — си-бемоль).
+  const NAMES = { ru: RU, latin: App.i18n.lang === 'de' ? LATIN.map((n) => (n === 'B' ? 'H' : n)) : LATIN, solfege: SOLFEGE };
   const FILE = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
   const PARSE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11, H: 11 };
 
@@ -24,12 +27,20 @@
     color: (m) => COLORS[pc(m)],
     colors: COLORS,
     fileName: (m) => FILE[pc(m)] + (Math.floor(m / 12) - 1),
-    /** mode: 'ru' | 'latin' | 'none' */
+    /**
+     * mode: 'ru' (До Ре Ми) | 'latin' (C D E) | 'solfege' (Do Re Mi) | 'none'.
+     * Без режима — как принято в языке интерфейса.
+     */
     name(m, mode, withOctave) {
       if (mode === 'none') return '';
-      const base = (mode === 'latin' ? LATIN : RU)[pc(m)];
-      return withOctave ? base + (mode === 'latin' ? App.notes.octave(m) : subOctave(m)) : base;
+      const key = NAMES[mode] ? mode : App.i18n.noteMode;
+      const base = NAMES[key][pc(m)];
+      return withOctave ? base + (key === 'latin' ? App.notes.octave(m) : subOctave(m)) : base;
     },
+    /** Аккорд «Hm» так пишут по-русски и по-немецки, а в остальных языках это «Bm». */
+    chordName: (name) => (['ru', 'de'].includes(App.i18n.lang) ? name : name.replace(/^H/, 'B')),
+    /** Какими подписями называть ноту в тексте, если человек выбрал «без подписей». */
+    shown: (mode) => (mode && mode !== 'none' ? mode : App.i18n.noteMode),
     /** 'C4', 'F#3', 'Bb2' → midi */
     parse(s) {
       const r = /^([A-Ha-h])([#b♯♭]?)(-?\d)$/.exec(s.trim());
@@ -51,15 +62,19 @@
 
   const LABEL = {
     Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[',
-    BracketRight: ']', Equal: '=', Minus: '-', Backquote: '`', Backslash: '\\', IntlBackslash: '\\', Space: 'Пробел',
-    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'Shift', ShiftRight: 'Shift справа',
+    BracketRight: ']', Equal: '=', Minus: '-', Backquote: '`', Backslash: '\\', IntlBackslash: '\\', Space: App.t('Пробел'),
+    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'Shift', ShiftRight: App.t('Shift справа'),
     Enter: 'Enter', NumpadEnter: 'Num Enter', Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert',
     Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', CapsLock: 'Caps',
     NumpadAdd: 'Num +', NumpadSubtract: 'Num −', NumpadMultiply: 'Num *', NumpadDivide: 'Num /', NumpadDecimal: 'Num ,',
   };
+  // На немецкой клавиатуре (QWERTZ) Z и Y поменяны местами, а справа — умлауты.
+  const DE = { KeyZ: 'Y', KeyY: 'Z', Semicolon: 'Ö', Quote: 'Ä', BracketLeft: 'Ü', BracketRight: '+', Minus: 'ß', Equal: '´', Slash: '-', Backquote: '^', Backslash: '#' };
+  const local = App.i18n.lang === 'de' ? DE : {};
   /** Название клавиши или MIDI-ноты («Midi36») — как её подписать человеку. */
   const keyName = (code) => {
     if (!code) return '';
+    if (local[code]) return local[code];
     if (LABEL[code]) return LABEL[code];
     const midi = /^Midi(\d+)$/.exec(code);
     if (midi) return 'MIDI ' + midi[1];
@@ -131,14 +146,14 @@
     const item = (code, off) => ({ code, label: name(base + off), color: App.notes.color(base + off) });
     const ok = (off) => !only || only(base + off);
     return [
-      { title: 'Нижний ряд', items: CHROMATIC_LOW.map((c, i) => ok(i) && item(c, i)).filter(Boolean) },
-      { title: 'Верхний ряд', items: CHROMATIC_HIGH.map((c, i) => ok(12 + i) && item(c, 12 + i)).filter(Boolean) },
+      { title: App.t('Нижний ряд'), items: CHROMATIC_LOW.map((c, i) => ok(i) && item(c, i)).filter(Boolean) },
+      { title: App.t('Верхний ряд'), items: CHROMATIC_HIGH.map((c, i) => ok(12 + i) && item(c, 12 + i)).filter(Boolean) },
     ].filter((g) => g.items.length);
   }
 
   /** То же для «ступенчатой» раскладки (арфа, калимба): midiOf(ступень) → нота. */
   function diatonicActions(midiOf, count, name) {
-    const titles = ['Нижний ряд (Z X C …)', 'Средний ряд (A S D …)', 'Верхний ряд (Q W E …)', 'Цифры'];
+    const titles = [App.t('Нижний ряд (Z X C …)'), App.t('Средний ряд (A S D …)'), App.t('Верхний ряд (Q W E …)'), App.t('Цифры')];
     return ROWS.map((row, r) => ({
       title: titles[r],
       items: row.map((code, i) => {

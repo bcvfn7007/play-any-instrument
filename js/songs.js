@@ -11,7 +11,7 @@
     return text.split(/\s+/).filter((t) => t && t !== '|').map((t) => {
       const [name, beats] = t.split(':');
       const midi = App.notes.parse(name);
-      if (midi == null) throw new Error('Не понял ноту «' + t + '»');
+      if (midi == null) throw new Error(App.t('Не понял ноту «') + t + '»');
       return [midi, beats ? parseFloat(beats) : 1];
     });
   }
@@ -21,8 +21,8 @@
   App.songs = [
     {
       id: 'elochka',
-      title: 'В лесу родилась ёлочка',
-      about: 'Новогодняя',
+      title: App.t('В лесу родилась ёлочка'),
+      about: App.t('Новогодняя'),
       bpm: 92,
       notes: tune(`
         G3:.5 E4:.5 E4:.5 D4:.5 E4:.5 C4:.5 G3:.5 G3 |
@@ -32,8 +32,8 @@
     },
     {
       id: 'kuznechik',
-      title: 'В траве сидел кузнечик',
-      about: 'Песенка из мультфильма, куплет',
+      title: App.t('В траве сидел кузнечик'),
+      about: App.t('Песенка из мультфильма, куплет'),
       bpm: 112,
       notes: tune(`
         A4:.5 E4:.5 A4:.5 E4:.5 A4:.5 G#4:.5 G#4 |
@@ -43,8 +43,8 @@
     },
     {
       id: 'ode',
-      title: 'Ода к радости',
-      about: 'Бетховен, Девятая симфония',
+      title: App.t('Ода к радости'),
+      about: App.t('Бетховен, Девятая симфония'),
       bpm: 108,
       notes: tune(`
         E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:.5 D4:2 |
@@ -55,7 +55,7 @@
     {
       id: 'twinkle',
       title: 'Twinkle Twinkle Little Star',
-      about: 'Английская колыбельная',
+      about: App.t('Английская колыбельная'),
       bpm: 100,
       notes: tune(`
         C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 |
@@ -64,8 +64,8 @@
     },
     {
       id: 'babusya',
-      title: 'Жили у бабуси',
-      about: 'Народная',
+      title: App.t('Жили у бабуси'),
+      about: App.t('Народная'),
       bpm: 104,
       notes: tune(`
         F4:.5 E4:.5 D4:.5 C4:.5 | G3 G3 |
@@ -75,7 +75,7 @@
     },
     {
       id: 'birthday',
-      title: 'С днём рождения тебя',
+      title: App.t('С днём рождения тебя'),
       about: 'Happy Birthday',
       bpm: 96,
       notes: tune(`
@@ -87,7 +87,7 @@
     {
       id: 'jingle',
       title: 'Jingle Bells',
-      about: 'Припев',
+      about: App.t('Припев'),
       bpm: 120,
       notes: tune(`
         E4 E4 E4:2 | E4 E4 E4:2 | E4 G4 C4:1.5 D4:.5 | E4:4 |

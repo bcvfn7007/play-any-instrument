@@ -13,19 +13,19 @@
     const elByMidi = new Map();
     let notes = [];
 
-    const board = h('div.xylo.' + style, { role: 'group', 'aria-label': 'Пластины' });
+    const board = h('div.xylo.' + style, { role: 'group', 'aria-label': App.t('Пластины') });
     root.append(board);
     const presser = App.presser(ctx, (m) => elByMidi.get(m));
     const nextMark = App.nextMarker((m) => elByMidi.get(m));
-    const octave = App.ui.stepper('Октава', (d) => shift(d));
+    const octave = App.ui.stepper(App.t('Октава'), (d) => shift(d));
     ctx.deck.append(octave.el);
 
     const K = App.keymap;
     ctx.setHints([
-      [K.span(K.chromaticLow.slice(0, 12)), 'нижняя октава'],
-      [K.span(K.chromaticHigh.slice(0, 17)), 'верхняя октава'],
-      [K.span(['ArrowLeft', 'ArrowRight']), 'сменить октаву'],
-      [null, 'проведите пальцем по пластинам — получится глиссандо'],
+      [K.span(K.chromaticLow.slice(0, 12)), App.t('нижняя октава')],
+      [K.span(K.chromaticHigh.slice(0, 17)), App.t('верхняя октава')],
+      [K.span(['ArrowLeft', 'ArrowRight']), App.t('сменить октаву')],
+      [null, App.t('проведите пальцем по пластинам — получится глиссандо')],
     ]);
 
     function measure() {
@@ -77,7 +77,7 @@
         const el = h('div.bar' + (black ? '.sharp' : ''), {
           dataset: { midi },
           role: 'button',
-          'aria-label': N.name(midi, 'ru', true),
+          'aria-label': N.name(midi, null, true),
           style: { '--c': N.color(midi), left: pos * w + w * 0.08 + '%', width: w * 0.84 + '%', '--len': len + '%' },
         },
         h('span.bar-face', null,
@@ -88,7 +88,7 @@
         elByMidi.set(midi, el);
         if (!black) wi++;
       });
-      octave.set(N.name(notes[0], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true) + ' – ' + N.name(notes[notes.length - 1], ctx.labelMode() === 'latin' ? 'latin' : 'ru', true));
+      octave.set(N.name(notes[0], N.shown(ctx.labelMode()), true) + ' – ' + N.name(notes[notes.length - 1], N.shown(ctx.labelMode()), true));
       presser.refresh();
       nextMark.apply();
       ctx.preload(notes);
@@ -132,7 +132,7 @@
       },
       refresh: render,
       keyActions: () => App.keymap.chromaticActions(start, ctx.noteName)
-        .concat([{ title: 'Управление', items: [{ code: 'ArrowLeft', label: 'Октава ниже' }, { code: 'ArrowRight', label: 'Октава выше' }] }]),
+        .concat([{ title: App.t('Управление'), items: [{ code: 'ArrowLeft', label: App.t('Октава ниже') }, { code: 'ArrowRight', label: App.t('Октава выше') }] }]),
       highlightNext: (m) => nextMark.set(m),
       playable: () => notes.slice(),
       playableFrom: (lo) => notesFrom(clampStart(12 * Math.floor(lo / 12))),
@@ -164,7 +164,7 @@
     for (let i = 2; i < COUNT; i += 2) order.push(i);
 
     const elByMidi = new Map();
-    const body = h('div.kalimba', { role: 'group', 'aria-label': 'Калимба' },
+    const body = h('div.kalimba', { role: 'group', 'aria-label': App.t('Калимба') },
       h('div.kalimba-hole'));
     const tines = h('div.tines');
     body.append(tines, h('div.kalimba-bridge'));
@@ -184,7 +184,7 @@
         const el = h('div.tine', {
           dataset: { midi },
           role: 'button',
-          'aria-label': N.name(midi, 'ru', true),
+          'aria-label': N.name(midi, null, true),
           style: { '--c': N.color(midi), '--len': len + '%' },
         },
         h('span.tine-face', null,
@@ -212,10 +212,10 @@
 
     const row = (r) => App.keymap.span(App.keymap.diatonicRows[r].slice(0, 7));
     ctx.setHints([
-      [row(0), 'первая октава'],
-      [row(1), 'вторая октава'],
-      [row(2), 'третья октава'],
-      [null, 'цифры на язычках — ступени лада, как в сборниках для калимбы'],
+      [row(0), App.t('первая октава')],
+      [row(1), App.t('вторая октава')],
+      [row(2), App.t('третья октава')],
+      [null, App.t('цифры на язычках — ступени лада, как в сборниках для калимбы')],
     ]);
     render();
     ctx.preload(degrees);

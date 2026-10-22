@@ -36,7 +36,7 @@
     });
 
     root.classList.add(bowed ? 'is-bowed' : 'is-plucked');
-    const neck = h('div.neck', { role: 'group', 'aria-label': 'Гриф' });
+    const neck = h('div.neck', { role: 'group', 'aria-label': App.t('Гриф') });
     const wrap = h('div.neck-wrap', null, neck);
     root.append(wrap);
 
@@ -45,7 +45,7 @@
 
     let strum = null;
     if (!bowed) {
-      strum = h('div.strum', { 'aria-label': 'Зона боя: проведите по струнам' });
+      strum = h('div.strum', { 'aria-label': App.t('Зона боя: проведите по струнам') });
       wrap.append(strum);
       strum.style.gridTemplateRows = rowsTemplate;
     }
@@ -78,7 +78,7 @@
             dataset: { s, f },
             style: { gridRow: row, gridColumn: f + 1, '--c': N.color(midi), '--thick': thick + 'px' },
             role: 'button',
-            'aria-label': N.name(midi, 'ru', true),
+            'aria-label': N.name(midi, null, true),
           }, h('span.cell-name', null, ctx.label(midi, f === 0)));
           neck.append(cell);
           cells[s][f] = cell;
@@ -153,8 +153,8 @@
     let chordBar = null;
     const chordButtons = [];
     if (chords.length) {
-      chordBar = h('div.chords', { role: 'group', 'aria-label': 'Аккорды' });
-      const none = h('button.chord', { type: 'button', 'aria-pressed': 'true', title: 'Открытые струны' }, 'Открытые');
+      chordBar = h('div.chords', { role: 'group', 'aria-label': App.t('Аккорды') });
+      const none = h('button.chord', { type: 'button', 'aria-pressed': 'true', title: App.t('Открытые струны') }, App.t('Открытые'));
       none.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         App.audio.ensure();
@@ -164,7 +164,7 @@
       chordBar.append(none);
       chordButtons.push(none);
       chords.forEach((c, i) => {
-        const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', title: 'Аккорд ' + c.name }, h('b', null, c.name));
+        const b = h('button.chord', { type: 'button', 'aria-pressed': 'false', title: App.t('Аккорд ') + N.chordName(c.name) }, h('b', null, N.chordName(c.name)));
         b.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           App.audio.ensure();
@@ -258,24 +258,24 @@
     const K = App.keymap;
     const space = K.label('Space');
     ctx.setHints([
-      chords.length ? [K.span(CHORD_KEYS.slice(0, chords.length)), 'аккорды'] : null,
-      chords.length && space ? [space, 'бой вниз'] : null,
-      chords.length && space ? ['Shift + ' + space, 'бой вверх'] : null,
-      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), 'отдельные ноты'],
-      [K.span(['ArrowLeft', 'ArrowRight']), 'октава клавиатуры'],
+      chords.length ? [K.span(CHORD_KEYS.slice(0, chords.length)), App.t('аккорды')] : null,
+      chords.length && space ? [space, App.t('бой вниз')] : null,
+      chords.length && space ? ['Shift + ' + space, App.t('бой вверх')] : null,
+      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), App.t('отдельные ноты')],
+      [K.span(['ArrowLeft', 'ArrowRight']), App.t('октава клавиатуры')],
     ]);
 
     function keyActions() {
       const groups = [];
       if (chords.length) {
-        groups.push({ title: 'Аккорды', items: chords.slice(0, CHORD_KEYS.length).map((c, i) => ({ code: CHORD_KEYS[i], label: 'Аккорд ' + c.name })) });
+        groups.push({ title: App.t('Аккорды'), items: chords.slice(0, CHORD_KEYS.length).map((c, i) => ({ code: CHORD_KEYS[i], label: App.t('Аккорд ') + N.chordName(c.name) })) });
       }
-      if (!bowed) groups.push({ title: 'Бой', items: [{ code: 'Space', label: 'Бой по струнам (с Shift — вверх)' }] });
+      if (!bowed) groups.push({ title: App.t('Бой'), items: [{ code: 'Space', label: App.t('Бой по струнам (с Shift — вверх)') }] });
       K.chromaticActions(kbBase, ctx.noteName, (m) => !!position(m)).forEach((g) => {
         const items = chords.length ? g.items.filter((it) => !it.code.startsWith('Digit')) : g.items;
-        if (items.length) groups.push({ title: 'Ноты: ' + g.title.toLowerCase(), items });
+        if (items.length) groups.push({ title: App.t('Ноты: ') + g.title.toLowerCase(), items });
       });
-      groups.push({ title: 'Управление', items: [{ code: 'ArrowLeft', label: 'Клавиатура на октаву ниже' }, { code: 'ArrowRight', label: 'Клавиатура на октаву выше' }] });
+      groups.push({ title: App.t('Управление'), items: [{ code: 'ArrowLeft', label: App.t('Клавиатура на октаву ниже') }, { code: 'ArrowRight', label: App.t('Клавиатура на октаву выше') }] });
       return groups;
     }
 
@@ -295,7 +295,7 @@
       keydown(code, e) {
         if (code === 'ArrowLeft' || code === 'ArrowRight') {
           kbBase = Math.max(12, Math.min(96, kbBase + (code === 'ArrowLeft' ? -12 : 12)));
-          ctx.toast('Клавиатура: от ' + N.name(kbBase, ctx.labelMode() === 'latin' ? 'latin' : 'ru', true));
+          ctx.toast(App.t('Клавиатура: от ') + N.name(kbBase, N.shown(ctx.labelMode()), true));
           return true;
         }
         if (chords.length) {

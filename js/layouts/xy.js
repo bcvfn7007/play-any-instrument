@@ -20,21 +20,21 @@
     const PAD = 0.03; // поле чуть шире диапазона, чтобы крайние ноты не прилипали к краю
     const toX = (m) => PAD + ((m - low) / (high - low)) * (1 - 2 * PAD);
 
-    const field = h('div.xy', { role: 'application', 'aria-label': 'Поле терменвокса: двигайте пальцем' });
+    const field = h('div.xy', { role: 'application', 'aria-label': App.t('Поле терменвокса: двигайте пальцем') });
     const guides = h('div.xy-guides');
-    field.append(guides, h('div.xy-axis', null, h('span', null, 'громче'), h('span', null, 'тише')));
+    field.append(guides, h('div.xy-axis', null, h('span', null, App.t('громче')), h('span', null, App.t('тише'))));
     root.append(field);
 
     const seg = App.ui.segmented([
-      ['free', 'Плавно', 'Высота меняется без ступенек, как у настоящего терменвокса'],
-      ['chromatic', 'По нотам', 'Притягивать к ближайшей ноте'],
-      ['major', 'Мажор', 'Только ноты до мажора'],
-      ['pentatonic', 'Пентатоника', 'Пять нот — фальшивить невозможно'],
+      ['free', App.t('Плавно'), App.t('Высота меняется без ступенек, как у настоящего терменвокса')],
+      ['chromatic', App.t('По нотам'), App.t('Притягивать к ближайшей ноте')],
+      ['major', App.t('Мажор'), App.t('Только ноты до мажора')],
+      ['pentatonic', App.t('Пентатоника'), App.t('Пять нот — фальшивить невозможно')],
     ], snap, (v) => {
       snap = v;
       ctx.setState('snap', v);
       render();
-    }, 'Привязка к нотам');
+    }, App.t('Привязка к нотам'));
     ctx.deck.append(seg.el);
 
     function render() {
@@ -134,8 +134,8 @@
 
     const K = App.keymap;
     ctx.setHints([
-      [null, 'зажмите поле и ведите: влево-вправо — высота, вверх-вниз — громкость'],
-      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), 'ноты с плавным переходом'],
+      [null, App.t('зажмите поле и ведите: влево-вправо — высота, вверх-вниз — громкость')],
+      [[K.span(K.chromaticLow.slice(0, 12)), K.span(K.chromaticHigh.slice(0, 17))].filter(Boolean).join(', '), App.t('ноты с плавным переходом')],
     ]);
     render();
 

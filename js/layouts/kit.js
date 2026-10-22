@@ -27,14 +27,14 @@
   ];
 
   const NAMES = {
-    kick: 'Бочка', tom1: 'Том 1', tom2: 'Том 2', floor: 'Напольный том', snare: 'Малый', hihat: 'Хай-хэт',
-    crash: 'Крэш', splash: 'Сплэш', ride: 'Райд', hhpedal: 'Педаль хэта', kickpedal: 'Педаль бочки',
+    kick: App.t('Бочка'), tom1: App.t('Том 1'), tom2: App.t('Том 2'), floor: App.t('Напольный том'), snare: App.t('Малый'), hihat: App.t('Хай-хэт'),
+    crash: App.t('Крэш'), splash: App.t('Сплэш'), ride: App.t('Райд'), hhpedal: App.t('Педаль хэта'), kickpedal: App.t('Педаль бочки'),
   };
 
   App.layouts.kit = function (root, ctx) {
     let hatOpen = ctx.getState('hatOpen', false);
 
-    const svg = el('svg', { viewBox: '0 0 1000 640', class: 'kit', role: 'group', 'aria-label': 'Барабанная установка' });
+    const svg = el('svg', { viewBox: '0 0 1000 640', class: 'kit', role: 'group', 'aria-label': App.t('Барабанная установка') });
     root.append(svg);
     const groups = {};
 
@@ -75,9 +75,9 @@
       const K = App.keymap;
       const k = p.keys.map(K.label).filter(Boolean);
       const extra = (list, word) => list && K.label(list[0]) && k.push(K.label(list[0]) + ' ' + word);
-      extra(p.rimKeys, 'обод');
-      extra(p.bellKeys, 'колокол');
-      extra(p.openKeys, 'откр.');
+      extra(p.rimKeys, App.t('обод'));
+      extra(p.bellKeys, App.t('колокол'));
+      extra(p.openKeys, App.t('откр.'));
       return k.join(', ');
     }
 
@@ -124,7 +124,7 @@
       g.append(el('circle', { cx: p.cx, cy: p.cy, r: p.r + 7, class: 'kit-hoop', fill: 'none' }));
       // Надпись на переднем пластике, как у настоящих установок.
       const mark = el('text', { x: p.cx, y: p.cy - 38, class: 'kit-logo', 'text-anchor': 'middle' });
-      mark.textContent = 'Звукоряд';
+      mark.textContent = App.t('Звукоряд');
       g.append(mark);
       g.append(label(p, p.cx, p.cy + 28));
       return g;
@@ -262,35 +262,35 @@
 
     /* ---------- Хай-хэт: открыт или закрыт ---------- */
 
-    const hat = App.ui.segmented([[false, 'Закрыт'], [true, 'Открыт']], hatOpen, (v) => {
+    const hat = App.ui.segmented([[false, App.t('Закрыт')], [true, App.t('Открыт')]], hatOpen, (v) => {
       hatOpen = v;
       ctx.setState('hatOpen', v);
       if (groups.hihat) groups.hihat.classList.toggle('open', v);
-    }, 'Хай-хэт');
-    ctx.deck.append(App.h('span.deck-label', null, 'Хай-хэт'), hat.el);
+    }, App.t('Хай-хэт'));
+    ctx.deck.append(App.h('span.deck-label', null, App.t('Хай-хэт')), hat.el);
 
     const K = App.keymap;
     const keysOf = (list) => list.map(K.label).filter(Boolean).join(' ');
     ctx.setHints([
-      [K.label('Space'), 'бочка'],
-      [K.label('KeyD'), 'малый'],
-      [K.label('KeyF'), 'обод'],
-      [K.label('KeyA'), 'хай-хэт'],
-      [K.label('KeyS'), 'открытый хай-хэт'],
-      [keysOf(['KeyE', 'KeyR', 'KeyJ']), 'томы'],
-      [keysOf(['KeyQ', 'KeyW', 'KeyP']), 'тарелки'],
-      [null, 'бейте по краю малого — будет удар по ободу, в центр райда — колокол'],
+      [K.label('Space'), App.t('бочка')],
+      [K.label('KeyD'), App.t('малый')],
+      [K.label('KeyF'), App.t('обод')],
+      [K.label('KeyA'), App.t('хай-хэт')],
+      [K.label('KeyS'), App.t('открытый хай-хэт')],
+      [keysOf(['KeyE', 'KeyR', 'KeyJ']), App.t('томы')],
+      [keysOf(['KeyQ', 'KeyW', 'KeyP']), App.t('тарелки')],
+      [null, App.t('бейте по краю малого — будет удар по ободу, в центр райда — колокол')],
     ]);
 
     function keyActions() {
-      const ZONE = { rim: ' — обод', bell: ' — колокол', open: ' — открытый', closed: ' — закрытый' };
+      const ZONE = { rim: App.t(' — обод'), bell: App.t(' — колокол'), open: App.t(' — открытый'), closed: App.t(' — закрытый') };
       const items = Object.keys(codes).map((code) => {
         const [id, zone] = codes[code];
         return { code, label: NAMES[id] + (ZONE[zone] || ''), piece: id };
       });
       const order = ['kick', 'snare', 'hihat', 'hhpedal', 'tom1', 'tom2', 'floor', 'crash', 'splash', 'ride'];
       items.sort((a, b) => order.indexOf(a.piece) - order.indexOf(b.piece));
-      return [{ title: 'Установка', items }];
+      return [{ title: App.t('Установка'), items }];
     }
 
     render();

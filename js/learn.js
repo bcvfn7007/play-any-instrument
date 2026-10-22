@@ -51,18 +51,18 @@
   };
 
   const TAP = {
-    keys: 'Нажмите мигающую клавишу',
-    bars: 'Ударьте по мигающей пластине',
-    kalimba: 'Нажмите мигающий язычок',
-    harp: 'Заденьте мигающую струну',
-    circle: 'Ударьте по мигающему полю',
-    strings: 'Прижмите мигающий лад',
-    bowed: 'Нажмите мигающее место на грифе',
+    keys: App.t('Нажмите мигающую клавишу'),
+    bars: App.t('Ударьте по мигающей пластине'),
+    kalimba: App.t('Нажмите мигающий язычок'),
+    harp: App.t('Заденьте мигающую струну'),
+    circle: App.t('Ударьте по мигающему полю'),
+    strings: App.t('Прижмите мигающий лад'),
+    bowed: App.t('Нажмите мигающее место на грифе'),
   };
 
   const cur = () => shell.current();
   const canLearn = () => !!(cur() && cur().layout && cur().layout.highlightNext);
-  const noteName = (m) => N.name(m, settings.labels === 'latin' ? 'latin' : 'ru');
+  const noteName = (m) => N.name(m, N.shown(settings.labels));
   const stepNow = () => learn.plan.steps[learn.step];
   const allNotes = (song) => song.steps.flatMap((s) => s.notes);
 
@@ -184,8 +184,8 @@
     const L = cur().layout;
     const have = new Set(L.playable().map(N.pc));
     const missing = [...new Set(allNotes(song).map(N.pc))].filter((p) => !have.has(p));
-    if (missing.length) return 'Здесь нет ноты ' + missing.map((p) => noteName(60 + p)).join(', ');
-    return L.playableFrom ? 'Не помещается на экране — поверните телефон боком' : 'На этом инструменте не хватает нот';
+    if (missing.length) return App.t('Здесь нет ноты ') + missing.map((p) => noteName(60 + p)).join(', ');
+    return L.playableFrom ? App.t('Не помещается на экране — поверните телефон боком') : App.t('На этом инструменте не хватает нот');
   }
 
   /* =================== Список песен =================== */
@@ -197,20 +197,20 @@
       h('span.song-dots', { 'aria-hidden': 'true' }, notes.slice(0, 5).map((m) => h('i', { style: { '--c': N.color(m) } }))),
       h('span.song-text', null,
         h('b', null, song.title),
-        h('small', null, ok ? song.about + ' · ' + shell.plural(song.steps.length, 'нота', 'ноты', 'нот') : whyNot(song))));
+        h('small', null, ok ? song.about + ' · ' + shell.plural(song.steps.length, App.t('нота'), App.t('ноты'), App.t('нот')) : whyNot(song))));
     b.addEventListener('click', () => {
       shell.closeDialogs();
       startSong(song);
     });
     if (!opts) return b;
     return h('div.song-row', null, b,
-      shell.iconButton('settings', 'Изменить: название, партия', () => opts.edit()),
-      shell.iconButton('trash', 'Удалить мелодию', () => opts.remove()));
+      shell.iconButton('settings', App.t('Изменить: название, партия'), () => opts.edit()),
+      shell.iconButton('trash', App.t('Удалить мелодию'), () => opts.remove()));
   }
 
   function openSongs() {
     if (!canLearn()) return;
-    const mine = h('div.songs.mine', null, h('p.note', null, 'Загружаем…'));
+    const mine = h('div.songs.mine', null, h('p.note', null, App.t('Загружаем…')));
     const list = h('div.songs');
     let playable = 0;
     App.songs.forEach((s) => {
@@ -219,28 +219,28 @@
       if (plan) playable++;
       list.append(songItem(song, plan));
     });
-    const add = h('button.btn.primary', { type: 'button', onClick: () => App.mySongs.add() }, App.icon('download'), 'Добавить свою мелодию');
-    shell.sheet('Разучить мелодию', h('div.learn-sheet', null,
-      h('p.note', null, 'Выберите песню. Нужная нота будет мигать на инструменте — нажмите её, и мелодия пойдёт дальше. Ошиблись — не страшно: мелодия подождёт.'),
+    const add = h('button.btn.primary', { type: 'button', onClick: () => App.mySongs.add() }, App.icon('download'), App.t('Добавить свою мелодию'));
+    shell.sheet(App.t('Разучить мелодию'), h('div.learn-sheet', null,
+      h('p.note', null, App.t('Выберите песню. Нужная нота будет мигать на инструменте — нажмите её, и мелодия пойдёт дальше. Ошиблись — не страшно: мелодия подождёт.')),
       h('section.songs-sec', null,
-        h('div.songs-head', null, h('h3', null, 'Мои мелодии'), add),
-        h('p.note', null, 'Любая песня из интернета: MIDI-файл, ноты MusicXML из MuseScore, запись голоса или ноты текстом.'),
+        h('div.songs-head', null, h('h3', null, App.t('Мои мелодии')), add),
+        h('p.note', null, App.t('Любая песня из интернета: MIDI-файл, ноты MusicXML из MuseScore, запись голоса или ноты текстом.')),
         mine),
       h('section.songs-sec', null,
-        h('h3', null, 'Простые песни'),
-        playable ? null : h('p.note', null, 'У этого инструмента особый набор нот, и эти песни на нём не сыграть. Попробуйте пианино, ксилофон или калимбу.'),
+        h('h3', null, App.t('Простые песни')),
+        playable ? null : h('p.note', null, App.t('У этого инструмента особый набор нот, и эти песни на нём не сыграть. Попробуйте пианино, ксилофон или калимбу.')),
         list)), { wide: true });
     App.mySongs.list().then((items) => {
       mine.textContent = '';
       if (!items.length) {
-        mine.append(h('p.empty', null, 'Пока пусто. Нажмите «Добавить свою мелодию».'));
+        mine.append(h('p.empty', null, App.t('Пока пусто. Нажмите «Добавить свою мелодию».')));
         return;
       }
       items.forEach(({ rec, song }) => {
         mine.append(songItem(song, planSong(song, { move: true }), {
           edit: () => App.mySongs.edit(rec),
           remove: () => {
-            if (!confirm('Удалить «' + rec.title + '» из моих мелодий?')) return;
+            if (!confirm(App.t('Удалить «') + rec.title + App.t('» из моих мелодий?'))) return;
             App.mySongs.remove(rec.id).then(() => {
               if (learn.song && learn.song.id === rec.id) stopSong();
               shell.closeDialogs();
@@ -251,7 +251,7 @@
       });
     }).catch(() => {
       mine.textContent = '';
-      mine.append(h('p.empty', null, 'Не получилось открыть мои мелодии — браузер не дал доступ к хранилищу.'));
+      mine.append(h('p.empty', null, App.t('Не получилось открыть мои мелодии — браузер не дал доступ к хранилищу.')));
     });
   }
 
@@ -307,7 +307,7 @@
     const t = learn.plan.steps[Math.min(learn.step, learn.plan.steps.length - 1)].t;
     const plan = planSong(learn.song, { move: true, around: learn.plan.shift });
     if (!plan) {
-      shell.toast('«' + learn.song.title + '» не помещается на этот вид инструмента');
+      shell.toast('«' + learn.song.title + App.t('» не помещается на этот вид инструмента'));
       stopSong();
       return;
     }
@@ -375,7 +375,7 @@
     if (ok == null) {
       if (st.notes.includes(r)) return; // повторили уже взятую ноту аккорда — не ошибка
       learn.misses++;
-      setTip('Мимо — ' + (want.length > 1 ? 'нужен аккорд ' + want.map(noteName).join(' + ') : 'нужна нота ' + noteName(want[0])), 1800);
+      setTip(App.t('Мимо — ') + (want.length > 1 ? App.t('нужен аккорд ') + want.map(noteName).join(' + ') : App.t('нужна нота ') + noteName(want[0])), 1800);
       const now = ui.notes.querySelector('.now');
       if (now) {
         now.classList.remove('miss');
@@ -403,7 +403,7 @@
     queueAcc(steps[from].t, learn.step < steps.length ? steps[learn.step].t : Infinity);
     if (learn.loop && learn.step > learn.loop.b) {
       learn.step = learn.loop.a;
-      setTip('Ещё раз этот кусок — повтор включён', 1600);
+      setTip(App.t('Ещё раз этот кусок — повтор включён'), 1600);
     } else if (learn.step >= steps.length) {
       finishSong();
       return;
@@ -439,18 +439,18 @@
 
   function showDone() {
     hideDone();
-    const word = 'Получилось!';
+    const word = App.t('Получилось!');
     const scale = [60, 62, 64, 65, 67, 69, 71, 72];
     const total = learn.good + learn.misses;
     const acc = total ? Math.round((learn.good / total) * 100) : 100;
-    const again = h('button.btn.primary', { type: 'button', onClick: () => startSong(learn.song) }, App.icon('restart'), 'Ещё раз');
-    const other = h('button.btn', { type: 'button', onClick: openSongs }, App.icon('note'), 'Другая мелодия');
-    const free = h('button.btn.ghost', { type: 'button', onClick: stopSong }, 'Просто поиграть');
+    const again = h('button.btn.primary', { type: 'button', onClick: () => startSong(learn.song) }, App.icon('restart'), App.t('Ещё раз'));
+    const other = h('button.btn', { type: 'button', onClick: openSongs }, App.icon('note'), App.t('Другая мелодия'));
+    const free = h('button.btn.ghost', { type: 'button', onClick: stopSong }, App.t('Просто поиграть'));
     learn.doneEl = h('div.learn-done', { role: 'status' },
       h('div.learn-card', null,
         h('h2', { 'aria-label': word }, [...word].map((ch, i) => h('span', { style: { '--c': N.color(scale[i % scale.length]) }, 'aria-hidden': 'true' }, ch))),
-        h('p', null, 'Вы сыграли «' + learn.song.title + '» от начала до конца' + (learn.misses ? '.' : ' — и ни разу не ошиблись!')),
-        learn.misses ? h('p.learn-score', null, 'Точность ' + acc + '% · ' + shell.plural(learn.misses, 'ошибка', 'ошибки', 'ошибок')) : null,
+        h('p', null, App.t('Вы сыграли «') + learn.song.title + App.t('» от начала до конца') + (learn.misses ? '.' : App.t(' — и ни разу не ошиблись!'))),
+        learn.misses ? h('p.learn-score', null, App.t('Точность ') + acc + '% · ' + shell.plural(learn.misses, App.t('ошибка'), App.t('ошибки'), App.t('ошибок'))) : null,
         h('div.row', null, again, other, free)));
     cur().stage.append(learn.doneEl);
   }
@@ -634,7 +634,7 @@
       }
     }, 25));
     audio.play().catch(() => {
-      shell.toast('Запись не играет — попробуйте ещё раз');
+      shell.toast(App.t('Запись не играет — попробуйте ещё раз'));
       stopDemo();
     });
     renderLearn();
@@ -665,30 +665,30 @@
   const SPEEDS = [0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
   function mount(el) {
-    const song = h('button.learn-song', { type: 'button', title: 'Выбрать другую мелодию', onClick: openSongs },
+    const song = h('button.learn-song', { type: 'button', title: App.t('Выбрать другую мелодию'), onClick: openSongs },
       App.icon('note'), h('span'), App.icon('chevron-down'));
     const notes = h('div.learn-notes', { 'aria-hidden': 'true' });
     const fill = h('i.learn-fill');
     const loopEl = h('i.learn-loop', { hidden: true }, h('b.a'), h('b.b'));
-    const track = h('div.learn-track', { role: 'slider', tabindex: 0, 'aria-label': 'Где вы в мелодии. Нажмите, чтобы перейти', 'aria-valuemin': 1 }, loopEl, fill);
+    const track = h('div.learn-track', { role: 'slider', tabindex: 0, 'aria-label': App.t('Где вы в мелодии. Нажмите, чтобы перейти'), 'aria-valuemin': 1 }, loopEl, fill);
     const count = h('span.learn-count');
-    const speedSel = h('select.select.learn-speed', { 'aria-label': 'Темп', title: 'Темп: медленнее — легче' },
-      SPEEDS.map((v) => h('option', { value: v }, 'Темп ' + Math.round(v * 100) + '%')));
+    const speedSel = h('select.select.learn-speed', { 'aria-label': App.t('Темп'), title: App.t('Темп: медленнее — легче') },
+      SPEEDS.map((v) => h('option', { value: v }, App.t('Темп ') + Math.round(v * 100) + '%')));
     speedSel.addEventListener('change', () => {
       settings.learn.speed = +speedSel.value;
       shell.save();
       speedSel.blur(); // иначе фокус остаётся в списке и клавиши компьютера не играют
     });
-    const accBtn = App.ui.toggle('Аккомпанемент', settings.learn.acc, (on) => {
+    const accBtn = App.ui.toggle(App.t('Аккомпанемент'), settings.learn.acc, (on) => {
       settings.learn.acc = on;
       shell.save();
       if (!on) stopAcc();
-    }, 'Остальные партии песни играют вместе с вами');
-    const loopBtn = App.ui.toggle('Повтор куска', false, (on) => toggleLoop(on), 'Повторять трудное место: перетащите края на полоске');
+    }, App.t('Остальные партии песни играют вместе с вами'));
+    const loopBtn = App.ui.toggle(App.t('Повтор куска'), false, (on) => toggleLoop(on), App.t('Повторять трудное место: перетащите края на полоске'));
     const listen = h('button.btn', { type: 'button', 'aria-pressed': 'false', onClick: toggleDemo });
-    const restart = h('button.btn.learn-restart', { type: 'button', title: 'Начать мелодию сначала', 'aria-label': 'Сначала', onClick: () => learn.song && startSong(learn.song) },
-      App.icon('restart'), h('span.btn-label', null, 'Сначала'));
-    const quit = shell.iconButton('close', 'Закончить разучивание', stopSong);
+    const restart = h('button.btn.learn-restart', { type: 'button', title: App.t('Начать мелодию сначала'), 'aria-label': App.t('Сначала'), onClick: () => learn.song && startSong(learn.song) },
+      App.icon('restart'), h('span.btn-label', null, App.t('Сначала')));
+    const quit = shell.iconButton('close', App.t('Закончить разучивание'), stopSong);
     const tip = h('p.learn-tip', { 'aria-live': 'polite' });
     const opts = h('div.learn-opts', null, speedSel, accBtn.el, loopBtn.el);
     el.textContent = '';
@@ -704,7 +704,7 @@
     else {
       const a = learn.done ? 0 : learn.step;
       learn.loop = { a, b: Math.min(learn.plan.steps.length - 1, a + 11) };
-      setTip('Повторяем ноты ' + (learn.loop.a + 1) + '–' + (learn.loop.b + 1) + '. Края куска можно перетащить на полоске', 3500);
+      setTip(App.t('Повторяем ноты ') + (learn.loop.a + 1) + '–' + (learn.loop.b + 1) + App.t('. Края куска можно перетащить на полоске'), 3500);
       if (learn.done) jumpTo(a);
     }
     renderLearn();
@@ -748,7 +748,7 @@
       if (!drag) return;
       drag = null;
       if (learn.song && (learn.step < learn.loop.a || learn.step > learn.loop.b)) jumpTo(learn.loop.a);
-      setTip('Повторяем ноты ' + (learn.loop.a + 1) + '–' + (learn.loop.b + 1), 2000);
+      setTip(App.t('Повторяем ноты ') + (learn.loop.a + 1) + '–' + (learn.loop.b + 1), 2000);
     };
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);
@@ -803,7 +803,7 @@
     ui.fill.style.setProperty('--p', (at / total) * 100 + '%');
     ui.track.setAttribute('aria-valuemax', total);
     ui.track.setAttribute('aria-valuenow', Math.min(total, at + 1));
-    ui.count.textContent = (learn.done ? total : at) + ' из ' + total;
+    ui.count.textContent = (learn.done ? total : at) + App.t(' из ') + total;
     ui.loopEl.hidden = !learn.loop;
     if (learn.loop) {
       ui.loopEl.style.left = (learn.loop.a / total) * 100 + '%';
@@ -816,34 +816,34 @@
     ui.accBtn.set(settings.learn.acc);
 
     const playing = !!learn.demo;
-    const label = playing ? 'Остановить' : 'Послушать, как звучит';
+    const label = playing ? App.t('Остановить') : App.t('Послушать, как звучит');
     ui.listen.textContent = '';
     ui.listen.append(App.icon(playing ? 'stop' : 'play'), h('span.btn-label', null, label));
     ui.listen.setAttribute('aria-pressed', String(playing));
     ui.listen.setAttribute('aria-label', label);
-    ui.listen.title = playing ? 'Остановить мелодию'
-      : song.audio ? 'Включить саму запись с этого места — ноты будут мигать в такт'
-        : 'Инструмент сам сыграет мелодию с этого места и покажет, куда нажимать';
+    ui.listen.title = playing ? App.t('Остановить мелодию')
+      : song.audio ? App.t('Включить саму запись с этого места — ноты будут мигать в такт')
+        : App.t('Инструмент сам сыграет мелодию с этого места и покажет, куда нажимать');
 
     const c = cur();
     const kind = c.layoutName === 'strings' && c.inst.bowed ? 'bowed' : c.layoutName;
-    let tip = TAP[kind] || 'Нажмите мигающую ноту';
+    let tip = TAP[kind] || App.t('Нажмите мигающую ноту');
     let warn = false;
     const st = !learn.done && steps[learn.step];
     if (learn.tip) {
       tip = learn.tip;
       warn = true;
     } else if (learn.lost) {
-      tip = 'Мелодия не помещается на экране — поверните телефон боком или начните сначала';
+      tip = App.t('Мелодия не помещается на экране — поверните телефон боком или начните сначала');
       warn = true;
     } else if (playing) {
-      tip = 'Слушайте и смотрите, какие ноты мигают. Потом повторите сами';
+      tip = App.t('Слушайте и смотрите, какие ноты мигают. Потом повторите сами');
     } else if (learn.done) {
-      tip = 'Мелодия сыграна целиком';
+      tip = App.t('Мелодия сыграна целиком');
     } else if (st && st.notes.length > 1) {
-      tip = 'Аккорд: нажмите все мигающие ноты вместе';
+      tip = App.t('Аккорд: нажмите все мигающие ноты вместе');
     } else if (learn.step === 0) {
-      tip += '. Не знаете, как звучит мелодия? Нажмите «Послушать»';
+      tip += App.t('. Не знаете, как звучит мелодия? Нажмите «Послушать»');
     }
     ui.tip.textContent = tip;
     ui.tip.classList.toggle('warn', warn);

@@ -36,7 +36,7 @@
     };
     const tag = () => String.fromCharCode(u8(), u8(), u8(), u8());
 
-    if (buf.byteLength < 14) throw new Error('Файл слишком маленький — это не MIDI');
+    if (buf.byteLength < 14) throw new Error(App.t('Файл слишком маленький — это не MIDI'));
     // Бывает обёртка RIFF (.rmi): ищем заголовок MThd внутри.
     let start = 0;
     const head = new Uint8Array(buf, 0, Math.min(buf.byteLength, 64));
@@ -47,7 +47,7 @@
       }
     }
     p = start;
-    if (tag() !== 'MThd') throw new Error('Это не MIDI-файл');
+    if (tag() !== 'MThd') throw new Error(App.t('Это не MIDI-файл'));
     const hlen = u32();
     u16(); // формат 0, 1 или 2 — читаем одинаково
     const ntrks = u16();
@@ -217,7 +217,7 @@
       });
     });
     list.sort((a, b) => a.notes[0][0] - b.notes[0][0] || a.channel - b.channel);
-    if (!list.length) throw new Error('В файле нет нот');
+    if (!list.length) throw new Error(App.t('В файле нет нот'));
     const tempo = tempos.length ? Math.round(60e6 / tempos[0][1]) : 120;
     return {
       title,

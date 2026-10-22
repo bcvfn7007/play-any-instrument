@@ -29,7 +29,7 @@
   function open() {
     const c = shell.current();
     if (!c || !c.layout || !c.layout.keyActions) {
-      shell.toast('Откройте инструмент — тогда можно назначить ему клавиши');
+      shell.toast(App.t('Откройте инструмент — тогда можно назначить ему клавиши'));
       return;
     }
     shell.closeDialogs();
@@ -90,7 +90,7 @@
       c.layout.keyActions().forEach((g) => {
         list.append(h('h3', null, g.title));
         g.items.forEach((it) => {
-          const btn = h('button.kb-key', { type: 'button', title: 'Нажмите, а потом — новую клавишу', 'aria-label': it.label + ': ' + keyText(it.code) + '. Сменить клавишу' }, keyText(it.code));
+          const btn = h('button.kb-key', { type: 'button', title: App.t('Нажмите, а потом — новую клавишу'), 'aria-label': it.label + ': ' + keyText(it.code) + App.t('. Сменить клавишу') }, keyText(it.code));
           if (!doing(it.code).length) btn.classList.add('empty');
           btn.addEventListener('click', () => wait(it.code, btn));
           list.append(h('div.kb-row', null,
@@ -105,7 +105,7 @@
       stop();
       waiting = { code, btn };
       btn.classList.add('wait');
-      btn.textContent = 'Нажмите клавишу…';
+      btn.textContent = App.t('Нажмите клавишу…');
       kb.capturing = (phys) => {
         stop();
         assign(code, phys);
@@ -135,7 +135,7 @@
         return;
       }
       if (!e.code || BLOCKED.has(e.code) || e.ctrlKey || e.altKey || e.metaKey) {
-        shell.toast('Эту клавишу назначить нельзя — выберите другую');
+        shell.toast(App.t('Эту клавишу назначить нельзя — выберите другую'));
         return;
       }
       kb.capturing(e.code);
@@ -143,13 +143,13 @@
 
     render();
     const content = h('div.keybind', null,
-      h('p.note', null, 'Нажмите на клавишу справа от ноты, а потом — новую клавишу на клавиатуре. Можно ударить по пэду MIDI-барабанов или нажать клавишу MIDI-клавиатуры — они добавятся к клавише компьютера. Backspace — убрать клавишу, Esc — отменить.'),
-      h('p.note', null, 'Эти клавиши — для всех инструментов с раскладкой «' + App.layoutNames[c.layoutName] + '».'),
+      h('p.note', null, App.t('Нажмите на клавишу справа от ноты, а потом — новую клавишу на клавиатуре. Можно ударить по пэду MIDI-барабанов или нажать клавишу MIDI-клавиатуры — они добавятся к клавише компьютера. Backspace — убрать клавишу, Esc — отменить.')),
+      h('p.note', null, App.t('Эти клавиши — для всех инструментов с раскладкой «') + App.layoutNames[c.layoutName] + '».'),
       list,
       h('div.kb-foot', null,
-        h('button.btn.ghost', { type: 'button', onClick: reset }, App.icon('restart'), 'Вернуть как было')));
+        h('button.btn.ghost', { type: 'button', onClick: reset }, App.icon('restart'), App.t('Вернуть как было'))));
 
-    const dlg = shell.sheet('Свои клавиши: ' + c.inst.name, content, {
+    const dlg = shell.sheet(App.t('Свои клавиши: ') + c.inst.name, content, {
       onClose() {
         kb.capturing = null;
         if (changed) shell.remount();
