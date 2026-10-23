@@ -155,9 +155,9 @@
     if (window.fetch) fetch(OWN + '/health', { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
   }
 
-  /** Ключи к ретранслятору TURN живут сутки — берём свежие, если наши старше четырёх часов. */
+  /** Ключи к ретранслятору TURN живут 6 часов — перед звонком берём свежие, если наши старше часа. */
   function loadTurn() {
-    if (!window.fetch || Date.now() - turnAt < 4 * 3600 * 1000) return;
+    if (!window.fetch || Date.now() - turnAt < 3600 * 1000) return;
     turnAt = Date.now();
     fetch(OWN + '/ice', { cache: 'no-store' })
       .then((r) => r.json())

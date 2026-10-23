@@ -16,13 +16,12 @@ const { ExpressPeerServer } = require('peer');
 const PORT = Number(process.env.PORT) || 9000;
 const HOUR = 3600 * 1000;
 
-// Кому можно пользоваться сервером: сам сайт, его копия на GitHub Pages и запуск на своём компьютере
-// (из файла браузер пишет origin «null»).
+// Кому можно пользоваться сервером: сам сайт, его копия на GitHub Pages и запуск на своём компьютере.
+// Сайт, открытый прямо из файла (origin «null»), сюда не пускаем: такой origin бывает у любой страницы в песочнице.
 const SITES = [
   /^https:\/\/play-any-instrument\.onrender\.com$/,
   /^https:\/\/bcvfn7007\.github\.io$/,
   /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,
-  /^null$/,
 ];
 const allowed = (origin) => !!origin && SITES.some((re) => re.test(origin));
 
@@ -48,7 +47,8 @@ app.get('/ice', async (req, res) => {
 
 /* ---------- TURN от Cloudflare ---------- */
 
-// Ключи живут сутки. Один набор раздаём всем и берём новый раз в час — так у каждого в запасе почти сутки.
+// Ключи живут 6 часов. Один набор раздаём всем и берём новый каждые полчаса — у каждого в запасе больше 5 часов.
+// Origin вне браузера легко подделать, так что ключи может взять и чужой; короткий срок ограничивает, сколько они проживут.
 const turn = { at: 0, list: [], job: null };
 
 function turnServers() {
@@ -56,11 +56,11 @@ function turnServers() {
   const token = process.env.TURN_KEY_API_TOKEN;
   if (!id || !token) return Promise.resolve([]);
   if (turn.job) return turn.job;
-  if (Date.now() - turn.at < (turn.list.length ? HOUR : HOUR / 12)) return Promise.resolve(turn.list);
+  if (Date.now() - turn.at < (turn.list.length ? HOUR / 2 : HOUR / 12)) return Promise.resolve(turn.list);
   turn.job = fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(id)}/credentials/generate-ice-servers`, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ttl: 24 * 3600 }),
+    body: JSON.stringify({ ttl: 6 * 3600 }),
     signal: AbortSignal.timeout(8000),
   })
     .then(async (r) => {
