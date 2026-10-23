@@ -950,6 +950,7 @@ App.i18n.add('en', {
   "Ссылка-приглашение": "Invite link",
   "Скопировать": "Copy",
   "Выходим в сеть…": "Going online…",
+  "Сервер знакомств просыпается — это бывает до минуты.": "The server is waking up — this can take up to a minute.",
   "Друзья подключатся к вам по этому нику. Он запомнится в этом браузере.": "Friends connect to you with this nickname. It's remembered in this browser.",
   "Пока никого. Подключитесь к другу по нику или дождитесь, когда он подключится к вам.": "No one here yet. Connect to a friend by nickname or wait for them to connect to you.",
   "Выйдите в сеть, чтобы играть вместе.": "Go online to play together.",

@@ -1,0 +1,14 @@
+# Свой сервер знакомств для «Играть вместе» — отдельный бесплатный веб-сервис на Render.
+# Создаётся один раз: New → Blueprint → этот репозиторий → Blueprint Path: server/render.yaml.
+# Сайт ждёт его по адресу https://zvukoryad-peer.onrender.com (см. js/online.js).
+# Ключ TURN (необязательно) добавляется потом в Environment: TURN_KEY_ID и TURN_KEY_API_TOKEN.
+services:
+  - type: web
+    name: zvukoryad-peer
+    runtime: node
+    plan: free
+    region: frankfurt # ближе всего к России
+    rootDir: server # правки сайта сервер не пересобирают
+    buildCommand: npm ci
+    startCommand: node index.js
+    healthCheckPath: /health

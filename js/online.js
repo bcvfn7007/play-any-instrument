@@ -1,7 +1,12 @@
 /*
  * Игра вместе: по нику, без регистрации. Браузеры соединяются напрямую (WebRTC),
- * а познакомиться им помогает бесплатный сервер PeerJS — он знает только ники тех, кто в сети.
+ * а познакомиться им помогают серверы PeerJS — они знают только ники тех, кто в сети.
  * По сети идут не звуки, а ноты: «нажата До₄ на гитаре», — и каждый слышит друга своим звуком.
+ *
+ * Серверов знакомств два. Общий бесплатный 0.peerjs.com доступен не всем: Chrome с «защищённым DNS»
+ * шифрует имя сайта (ECH), а в России такие соединения с Cloudflare обрывают. Поэтому есть и свой сервер
+ * на Render (папка server/) — у него ECH нет. В сеть выходим сразу через оба: двое найдут друг друга,
+ * если у них есть хоть один общий сервер.
  */
 (function () {
   const App = (window.App = window.App || {});
@@ -18,11 +23,26 @@
   const MAX_ROOM = 8;
   const RATE = 150; // сообщений в секунду от одного человека; больше — лишнее отбрасываем
   const ID_RE = /^zvukoryad-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const OWN = 'https://zvukoryad-peer.onrender.com';
+  const SERVERS = [
+    { host: 'zvukoryad-peer.onrender.com', port: 443, secure: true, path: '/' }, // свой — им звоним первым
+    {}, // общий 0.peerjs.com — его адрес библиотека знает сама
+  ];
+  const NET_ERRORS = ['network', 'server-error', 'socket-error', 'socket-closed', 'invalid-id', 'ssl-unavailable', 'unavailable-id'];
+  // Как узнать свой адрес в интернете. Ретранслятор TURN (если напрямую не соединиться) выдаёт свой сервер:
+  // встроенные в PeerJS адреса TURN больше не работают.
+  const STUN = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+  const rtc = { iceServers: STUN };
 
   let shell = null;
   let settings = null;
   let lib = null;
-  let peer = null;
+  let peers = []; // по одному на каждый сервер знакомств; null — через этот сервер сейчас не в сети
+  let fails = []; // сколько раз подряд не вышло выйти в сеть через сервер
+  let rejoinTimers = [];
+  let settle = () => {}; // чем закончить текущий выход в сеть: удалось или нет
+  let turnAt = 0;
+  let since = 0; // когда начали выходить в сеть
   let state = 'off'; // off | connecting | online | error
   let problem = '';
   let myId = '';
@@ -92,7 +112,7 @@
     }
     if (friend) setTimeout(() => open({ friend }), 350);
     else if (settings.net.auto && settings.net.nick) setTimeout(() => goOnline(settings.net.nick, 3), 700);
-    window.addEventListener('pagehide', () => peer && broadcast({ t: 'bye' }));
+    window.addEventListener('pagehide', () => broadcast({ t: 'bye' }));
     if (App.live) {
       App.live.onMic((st) => {
         if (st !== 'on' && micStream) {
@@ -130,7 +150,26 @@
     return lib;
   }
 
+  /** Свой сервер на бесплатном Render засыпает, когда им долго никто не пользуется, и просыпается до минуты. Будим заранее. */
+  function wake() {
+    if (window.fetch) fetch(OWN + '/health', { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+  }
+
+  /** Ключи к ретранслятору TURN живут сутки — берём свежие, если наши старше четырёх часов. */
+  function loadTurn() {
+    if (!window.fetch || Date.now() - turnAt < 4 * 3600 * 1000) return;
+    turnAt = Date.now();
+    fetch(OWN + '/ice', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        const turn = (d && Array.isArray(d.iceServers) ? d.iceServers : []).filter((s) => s && s.urls && s.username);
+        rtc.iceServers = STUN.concat(turn); // PeerJS берёт настройки отсюда для каждого нового соединения
+      })
+      .catch(() => (turnAt = 0));
+  }
+
   function setState(s, text) {
+    if (s === 'connecting' && state !== 'connecting') since = Date.now();
     state = s;
     problem = text || '';
     if ((s === 'off' || s === 'error') && releaseLock) {
@@ -166,9 +205,9 @@
       setState('error', App.t('Ник слишком короткий: нужны хотя бы две буквы или цифры.'));
       return false;
     }
-    if (peer && myId === PREFIX + id && state === 'online') return true;
+    if (peers.length && myId === PREFIX + id && state === 'online') return true;
     clearTimeout(retryTimer);
-    if (peer) leave(true);
+    if (peers.length) leave(true);
     if (!releaseLock && !(await takeLock(id))) {
       // При открытии страницы молчим: в сети уже другая вкладка — пусть играет она.
       if (retries === 3) setState('off');
@@ -187,6 +226,8 @@
       setState('error', App.t('Не загрузился модуль связи — проверьте интернет.'));
       return false;
     }
+    loadTurn();
+    setTimeout(changed, 6500); // если всё ещё выходим в сеть — подскажем, что сервер просыпается
     return new Promise((resolve) => {
       let done = false;
       const finish = (ok) => {
@@ -195,69 +236,112 @@
           resolve(ok);
         }
       };
-      const p = (peer = new Peer(myId, { debug: 0 }));
-      p.on('open', () => {
-        if (peer !== p) return;
+      peers = SERVERS.map(() => null);
+      fails = SERVERS.map(() => 0);
+      settle = finish;
+      SERVERS.forEach((srv, i) => join(Peer, i, nick, retries));
+    });
+  }
+
+  /** Выйти в сеть через сервер знакомств № i. */
+  function join(Peer, i, nick, retries) {
+    const p = (peers[i] = new Peer(myId, Object.assign({ debug: 0, config: rtc }, SERVERS[i])));
+    const mine = () => peers[i] === p;
+    let opened = false;
+    p.on('open', () => {
+      if (!mine()) return;
+      opened = true;
+      fails[i] = 0;
+      if (state !== 'online') {
         settings.net.auto = true;
         shell.save();
         setState('online');
         startHello();
-        finish(true);
-      });
-      p.on('connection', (conn) => peer === p && incoming(conn));
-      p.on('call', (call) => peer === p && incomingCall(call));
-      p.on('disconnected', () => {
-        // Пропала связь с сервером знакомств: уже начатая игра идёт напрямую, а адрес восстановим.
-        setTimeout(() => {
-          if (peer === p && !p.destroyed && p.disconnected) p.reconnect();
-        }, 2500);
-      });
-      p.on('error', (err) => {
-        if (peer !== p) return;
-        const type = err && err.type;
-        if (type === 'peer-unavailable') {
-          const m = /zvukoryad-[a-z0-9-]+/.exec((err && err.message) || '');
-          const link = m && links.get(m[0]);
-          if (link && !link.ok) failDial(link, 'missing');
-          return;
-        }
-        if (type === 'unavailable-id') {
-          p.destroy();
-          peer = null;
-          if (retries > 0) {
-            // Скорее всего, это мы сами до перезагрузки страницы — сервер вот-вот нас забудет.
-            retryTimer = setTimeout(() => goOnline(nick, retries - 1).then(finish), 4000);
-            return;
-          }
-          setState('error', App.t('Ник «') + nick + App.t('» уже занят. Придумайте другой — или закройте сайт в другой вкладке.'));
-          finish(false);
-          return;
-        }
-        if (type === 'browser-incompatible') {
-          p.destroy();
-          peer = null;
-          setState('error', App.t('Этот браузер не умеет играть вместе. Подойдут Chrome, Edge, Firefox или Safari.'));
-          finish(false);
-          return;
-        }
-        if (state === 'connecting' && ['network', 'server-error', 'socket-error', 'socket-closed', 'invalid-id', 'ssl-unavailable'].includes(type)) {
-          p.destroy();
-          peer = null;
-          setState('error', App.t('Нет связи с сервером — проверьте интернет и попробуйте ещё раз.'));
-          finish(false);
-        }
-      });
+      }
+      settle(true);
     });
+    p.on('connection', (conn) => mine() && incoming(conn, i));
+    p.on('call', (call) => mine() && incomingCall(call));
+    p.on('disconnected', () => {
+      // Пропала связь с сервером знакомств: уже начатая игра идёт напрямую, а адрес восстановим.
+      setTimeout(() => {
+        if (mine() && !p.destroyed && p.disconnected) p.reconnect();
+      }, 2500);
+    });
+    p.on('error', (err) => {
+      if (!mine()) return;
+      const type = err && err.type;
+      if (type === 'peer-unavailable') {
+        const m = /zvukoryad-[a-z0-9-]+/.exec((err && err.message) || '');
+        const link = m && links.get(m[0]);
+        if (link && !link.ok && link.via === i) {
+          if (link.out) redial(link);
+          else failDial(link, 'missing');
+        }
+        return;
+      }
+      if (type === 'unavailable-id' && state !== 'online') {
+        dropPeers();
+        if (retries > 0) {
+          // Скорее всего, это мы сами до перезагрузки страницы — сервер вот-вот нас забудет.
+          const outer = settle;
+          retryTimer = setTimeout(() => goOnline(nick, retries - 1).then(outer), 4000);
+          return;
+        }
+        setState('error', App.t('Ник «') + nick + App.t('» уже занят. Придумайте другой — или закройте сайт в другой вкладке.'));
+        settle(false);
+        return;
+      }
+      if (type === 'browser-incompatible') {
+        dropPeers();
+        setState('error', App.t('Этот браузер не умеет играть вместе. Подойдут Chrome, Edge, Firefox или Safari.'));
+        settle(false);
+        return;
+      }
+      if (!opened && NET_ERRORS.includes(type)) {
+        // Через этот сервер в сеть не вышли. Есть другой — попробуем этот ещё раз попозже; нет — так и скажем.
+        p.destroy();
+        peers[i] = null;
+        if (peers.some(Boolean)) rejoin(Peer, i);
+        else if (state === 'connecting') {
+          dropPeers();
+          setState('error', App.t('Нет связи с сервером — проверьте интернет и попробуйте ещё раз.'));
+          settle(false);
+        }
+      }
+    });
+  }
+
+  /** Снова выйти в сеть через сервер № i: через 5 секунд, потом реже — до раза в минуту. */
+  function rejoin(Peer, i) {
+    clearTimeout(rejoinTimers[i]);
+    const wait = Math.min(60000, 5000 * 2 ** fails[i]++);
+    rejoinTimers[i] = setTimeout(() => {
+      if (peers.some(Boolean) && !peers[i]) join(Peer, i, myName, 0);
+    }, wait);
+  }
+
+  function dropPeers() {
+    rejoinTimers.forEach(clearTimeout);
+    peers.forEach((p) => p && p.destroy());
+    peers = [];
+  }
+
+  /** Сервер знакомств, через который можно позвонить: первый из открытых, начиная с № from. */
+  function via(from) {
+    for (let i = from || 0; i < peers.length; i++) if (peers[i] && peers[i].open) return i;
+    return -1;
   }
 
   /** Уйти из сети. quiet — без смены «выходить в сеть сам» (например, при смене ника). */
   function leave(quiet) {
     clearTimeout(retryTimer);
-    if (peer) {
+    rejoinTimers.forEach(clearTimeout);
+    if (peers.length) {
       broadcast({ t: 'bye' });
-      const p = peer;
-      peer = null;
-      setTimeout(() => p.destroy(), 200); // «пока» должно успеть уйти
+      const old = peers;
+      peers = [];
+      setTimeout(() => old.forEach((p) => p && p.destroy()), 200); // «пока» должно успеть уйти
     }
     links.forEach((l) => closeLink(l, true));
     [...members.keys()].forEach((id) => forget(id, true));
@@ -274,7 +358,7 @@
   /* =================== Соединения =================== */
 
   const okLinks = () => [...links.values()].filter((l) => l.ok);
-  const active = () => !!peer && okLinks().length > 0;
+  const active = () => peers.length > 0 && okLinks().length > 0;
 
   function send(link, msg) {
     try {
@@ -284,7 +368,7 @@
 
   /** Сообщение всем в комнате: соседям напрямую, а они передадут дальше. */
   function broadcast(body) {
-    if (!peer || !myId) return;
+    if (!peers.length || !myId) return;
     const msg = Object.assign({ o: myId, q: ++seq }, body);
     links.forEach((l) => l.ok && send(l, msg));
   }
@@ -295,10 +379,13 @@
     link.conn.on('error', () => dropLink(link));
   }
 
-  function connect(id, room) {
-    const conn = peer.connect(id, { metadata: { name: myName, room: !!room }, serialization: 'json', reliable: true });
+  /** Позвонить по нику через сервер знакомств — первый открытый, начиная с № from. */
+  function connect(id, room, from) {
+    const i = via(from);
+    if (i < 0) return null;
+    const conn = peers[i].connect(id, { metadata: { name: myName, room: !!room }, serialization: 'json', reliable: true });
     if (!conn) return null;
-    const link = { id, conn, name: nameOf(id), ok: false, out: true, room: !!room, timer: null };
+    const link = { id, conn, via: i, name: nameOf(id), ok: false, out: true, room: !!room, timer: null };
     links.set(id, link);
     wire(link);
     link.timer = setTimeout(() => !link.ok && failDial(link, 'timeout'), room ? 20000 : 60000);
@@ -324,10 +411,20 @@
     if (old && old.ok) return say(App.t('Вы уже играете вместе с «') + old.name + '».');
     if (old) closeLink(old, true);
     if (members.size >= MAX_ROOM - 1) return say(App.t('В комнате уже ') + MAX_ROOM + App.t(' человек — больше не поместится.'));
+    loadTurn();
     const link = connect(id, false);
     if (!link) return say(App.t('Не получилось начать соединение. Попробуйте ещё раз.'));
     link.name = nick;
     say('');
+    changed();
+  }
+
+  /** Друга нет на этом сервере знакомств — ищем на следующем. */
+  function redial(link) {
+    if (via(link.via + 1) < 0) return failDial(link, 'missing');
+    closeLink(link, true);
+    const next = connect(link.id, link.room, link.via + 1);
+    if (next) next.name = link.name;
     changed();
   }
 
@@ -342,7 +439,7 @@
           : App.t('Не получилось соединиться с ') + who + App.t(' — возможно, мешает сеть. Попробуйте ещё раз.'), true);
   }
 
-  function incoming(conn) {
+  function incoming(conn, i) {
     const id = conn.peer;
     if (!ID_RE.test(id) || id === myId) {
       conn.close();
@@ -351,7 +448,7 @@
     const meta = conn.metadata || {};
     const old = links.get(id);
     if (old) closeLink(old, true); // друг перезагрузил страницу и стучится снова
-    const link = { id, conn, name: cleanNick(meta.name) || id.slice(PREFIX.length), ok: false, out: false, room: !!meta.room, timer: null };
+    const link = { id, conn, via: i, name: cleanNick(meta.name) || id.slice(PREFIX.length), ok: false, out: false, room: !!meta.room, timer: null };
     links.set(id, link);
     wire(link);
     conn.on('open', () => {
@@ -758,8 +855,11 @@
   }
 
   function callWithMic(id) {
-    if (!peer || !micStream || micCalls.has(id)) return;
-    const call = peer.call(id, micStream, { metadata: { name: myName } });
+    const l = links.get(id);
+    // Звоним через тот же сервер знакомств, через который соединились.
+    const p = l && [peers[l.via], ...peers].find((x) => x && x.open);
+    if (!p || !micStream || micCalls.has(id)) return;
+    const call = p.call(id, micStream, { metadata: { name: myName } });
     if (!call) return;
     micCalls.set(id, call);
     const done = () => micCalls.get(id) === call && micCalls.delete(id);
@@ -899,6 +999,7 @@
 
   function open(opts) {
     shell.closeDialogs();
+    if (state !== 'online') wake();
     const nick = h('input.net-input', { type: 'text', maxlength: 24, placeholder: App.t('Например, Вася'), autocomplete: 'nickname', spellcheck: 'false', 'aria-label': App.t('Ваш ник') });
     nick.value = settings.net.nick || '';
     const friend = h('input.net-input', { type: 'text', maxlength: 24, placeholder: App.t('Ник друга'), autocomplete: 'off', spellcheck: 'false', 'aria-label': App.t('Ник друга') });
@@ -971,7 +1072,8 @@
           h('input.net-input.net-url', { type: 'text', readonly: true, value: link, 'aria-label': App.t('Ссылка-приглашение'), onFocus: (e) => e.target.select() }),
           h('button.btn', { type: 'button', onClick: () => copy(link) }, App.t('Скопировать'))) : null);
     } else if (state === 'connecting') {
-      v.meCard.append(h('p.net-status', null, h('i.net-dot'), App.t('Выходим в сеть…')));
+      v.meCard.append(h('p.net-status', null, h('i.net-dot'), App.t('Выходим в сеть…')),
+        ...(Date.now() - since > 6000 ? [h('p.note', null, App.t('Сервер знакомств просыпается — это бывает до минуты.'))] : []));
     } else if (state === 'error') {
       v.meCard.append(h('p.net-status.bad', null, problem));
     } else {
