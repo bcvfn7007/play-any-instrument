@@ -178,6 +178,8 @@
         h('a.wordmark', { href: '#/' }, wordmark()),
         h('div.head-actions', null,
           langSelect(),
+          h('a.btn.donate-home', { href: 'https://t.me/zvukoryad_bot', target: '_blank', rel: 'noopener', title: App.t('Поддержать «Звукоряд» звёздами Telegram') },
+            App.icon('star'), h('span.btn-label', null, App.t('Поддержать'))),
           together,
           iconButton('plug', App.t('Подключить настоящий инструмент: MIDI или микрофон'), () => App.live.open(), 'live-btn'),
           iconButton('settings', App.t('Настройки'), () => openSettings()))),

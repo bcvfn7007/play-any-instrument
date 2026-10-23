@@ -4090,6 +4090,36 @@ dialog.sheet.wide {
   color: var(--on-brass);
 }
 
+/* ===================== Кнопка «Поддержать» (донат-бот в Telegram) ===================== */
+
+.donate-home .icon {
+  color: var(--brass);
+  fill: currentColor;
+}
+
+@media (max-width: 760px) {
+  .donate-home .btn-label {
+    display: none;
+  }
+  .donate-home {
+    padding: 8px 10px;
+  }
+}
+
+/* На телефоне название, выбор языка и кнопки в одну строку не влезают: кнопки уходят на вторую. */
+@media (max-width: 480px) {
+  .site-head {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .head-actions {
+    width: 100%;
+  }
+  .head-actions .lang-select {
+    margin-right: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
