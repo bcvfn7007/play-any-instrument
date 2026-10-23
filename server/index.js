@@ -5,7 +5,7 @@
  * Ещё сервер раздаёт ключи к ретранслятору TURN от Cloudflare — для сетей, где напрямую не соединиться.
  *
  * Запуск: npm ci && npm start. Настройки (переменные окружения):
- *   PORT — порт (Render задаёт сам);
+ *   PORT и IP — порт и адрес (Render и alwaysdata задают сами);
  *   TURN_KEY_ID и TURN_KEY_API_TOKEN — ключ TURN из Cloudflare (Realtime → TURN); без них TURN просто нет.
  */
 const http = require('node:http');
@@ -99,4 +99,5 @@ app.use('/', ExpressPeerServer(server, {
   }),
 }));
 
-server.listen(PORT, () => console.log('Сервер знакомств «Звукоряда» слушает порт ' + PORT));
+// alwaysdata выдаёт программе свой адрес и порт (IP и PORT) — слушать надо именно их; Render задаёт только порт.
+server.listen(PORT, process.env.IP || undefined, () => console.log('Сервер знакомств «Звукоряда» слушает ' + (process.env.IP || '*') + ':' + PORT));
